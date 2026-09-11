@@ -1,0 +1,164 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepSeek-V4.1-Flash on CMP 170HX — Update #2</title>
+<style>
+  :root {
+    --off-white: #F7F9FB; --blue-600: #007FAF; --blue-700: #115274; --blue-800: #15374C;
+    --off-black: #030E16; --neutrals-10: #EFF3F7; --neutrals-25: #EAEFF3; --neutrals-50: #E6EAEE;
+    --neutrals-100: #CDD1D7; --neutrals-300: #949CA5; --neutrals-400: #838E98; --neutrals-500: #73808C;
+    --neutrals-600: #536573; --neutrals-700: #3F515F; --blue-10: #E1F5FC; --green-400: #26CC86;
+    --yellow-400: #FFAB40; --red-500: #DE3243; --topbar-h: 48px;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--off-white); color: var(--off-black);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; font-size: 15px; line-height: 1.65;
+    -webkit-font-smoothing: antialiased; }
+  a { color: var(--blue-600); text-decoration: none; } a:hover { text-decoration: underline; }
+  .topbar { position: sticky; top: 0; z-index: 50; background: #fff; border-bottom: 1px solid var(--neutrals-50); box-shadow: 0 1px 2px rgba(3,14,22,0.04); }
+  .topbar-inner { padding: 12px 32px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+  .topbar-doc-title { font-size: 14px; font-weight: 600; color: var(--blue-800); }
+  .topbar-tag { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--blue-600); background: var(--blue-10); padding: 4px 10px; border-radius: 999px; }
+  .layout { display: grid; grid-template-columns: 280px minmax(0,1fr); gap: 56px; padding: 40px 32px 96px; align-items: start; }
+  .toc { position: sticky; top: calc(var(--topbar-h) + 32px); max-height: calc(100vh - var(--topbar-h) - 64px); overflow-y: auto; font-size: 13px; }
+  .toc-title { font-size: 11px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--neutrals-400); margin: 0 0 12px; padding: 0 12px; }
+  .toc-list { list-style: none; margin: 0; padding: 0; border-left: 1px solid var(--neutrals-50); }
+  .toc-list a { display: block; padding: 6px 12px; color: var(--neutrals-600); border-left: 2px solid transparent; margin-left: -1px; }
+  .toc-list a:hover { color: var(--blue-700); background: var(--off-white); }
+  .page { background: #fff; padding: 56px 64px; border: 1px solid var(--neutrals-50); border-radius: 6px; box-shadow: 0 1px 3px rgba(3,14,22,0.06), 0 8px 30px rgba(3,14,22,0.05); min-width: 0; }
+  .doc-eyebrow { font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--blue-600); margin: 0 0 12px; }
+  .doc-title { font-size: 32px; font-weight: 600; line-height: 1.2; color: var(--blue-800); margin: 0 0 20px; letter-spacing: -0.01em; }
+  .doc-meta { display: grid; gap: 8px; padding: 20px 24px; background: var(--off-white); border-left: 3px solid var(--blue-600); border-radius: 4px; margin: 0 0 8px; }
+  .doc-meta-row { display: flex; gap: 10px; font-size: 13.5px; align-items: baseline; }
+  .doc-meta-label { font-weight: 600; color: var(--neutrals-600); min-width: 150px; flex-shrink: 0; }
+  h2 { font-size: 21px; font-weight: 600; color: var(--blue-800); margin: 48px 0 16px; scroll-margin-top: calc(var(--topbar-h) + 24px); }
+  h2 .sec-num { color: var(--blue-600); font-weight: 500; margin-right: 8px; }
+  h3 { font-size: 16px; font-weight: 600; color: var(--blue-700); margin: 28px 0 10px; }
+  p { margin: 0 0 14px; }
+  strong { color: var(--blue-800); font-weight: 600; }
+  code { background: var(--neutrals-10); padding: 1px 5px; border-radius: 3px; font-size: 12.5px; font-family: 'SF Mono', Menlo, monospace; color: var(--blue-700); }
+  ul { margin: 0 0 16px; padding-left: 22px; } li { margin-bottom: 6px; } li::marker { color: var(--blue-600); }
+  .pill { display: inline-block; font-size: 10.5px; font-weight: 600; letter-spacing: 0.03em; text-transform: uppercase; padding: 2px 8px; border-radius: 4px; vertical-align: middle; margin-left: 4px; }
+  .rating { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; padding: 2px 9px; border-radius: 999px; white-space: nowrap; }
+  .rating-dot { width: 7px; height: 7px; border-radius: 50%; flex-shrink: 0; }
+  .r-strong { background: rgba(38,204,134,0.12); color: #1a8f5c; } .r-strong .rating-dot { background: var(--green-400); }
+  .r-partial { background: rgba(255,171,64,0.14); color: #b46e00; } .r-partial .rating-dot { background: var(--yellow-400); }
+  .r-weak { background: rgba(222,50,67,0.10); color: var(--red-500); } .r-weak .rating-dot { background: var(--red-500); }
+  .alert { background: var(--blue-10); border-left: 3px solid var(--blue-600); padding: 14px 18px; border-radius: 4px; font-size: 13.5px; margin: 16px 0 24px; color: var(--neutrals-700); }
+  .alert-warn { background: rgba(255,171,64,0.10); border-left-color: var(--yellow-400); }
+  .alert strong { color: var(--blue-800); }
+  .table-wrap { overflow-x: auto; margin: 20px 0 24px; border: 1px solid var(--neutrals-50); border-radius: 6px; }
+  table { border-collapse: collapse; width: 100%; font-size: 13px; min-width: 560px; }
+  thead th { background: var(--blue-800); color: #fff; text-align: left; font-weight: 500; font-size: 12.5px; padding: 11px 14px; }
+  tbody td { padding: 12px 14px; border-bottom: 1px solid var(--neutrals-25); vertical-align: top; }
+  tbody tr:nth-child(even) { background: var(--off-white); }
+  tbody td:first-child { font-weight: 600; color: var(--blue-800); }
+  .footer-note { margin-top: 56px; padding-top: 20px; border-top: 1px solid var(--neutrals-50); font-size: 12px; color: var(--neutrals-400); font-style: italic; }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0,1fr); gap: 0; padding: 24px 16px 64px; } .toc { display: none; } .page { padding: 36px 24px; } .doc-title { font-size: 24px; } }
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner">
+  <span class="topbar-doc-title">DeepSeek-V4.1-Flash on CMP 170HX — Update #2</span>
+  <span class="topbar-tag">CMP 170HX Campaign</span>
+</div></header>
+
+<div class="layout">
+  <aside class="toc"><p class="toc-title">Contents</p>
+    <ul class="toc-list">
+      <li><a href="#sec-1"><span class="toc-num">1.</span>What changed since Update #1</a></li>
+      <li><a href="#sec-2"><span class="toc-num">2.</span>GitHub &amp; upstream deltas</a></li>
+      <li><a href="#sec-3"><span class="toc-num">3.</span>HuggingFace &amp; Reddit</a></li>
+      <li><a href="#sec-4"><span class="toc-num">4.</span>Discord (dsum cmpunlocker)</a></li>
+      <li><a href="#sec-5"><span class="toc-num">5.</span>Our campaign status</a></li>
+      <li><a href="#sec-6"><span class="toc-num">6.</span>Evidence quality</a></li>
+    </ul>
+  </aside>
+
+  <main class="page">
+    <p class="doc-eyebrow">Update #2 — delta report</p>
+    <h1 class="doc-title">DeepSeek-V4.1-Flash on CMP 170HX</h1>
+
+    <div class="doc-meta">
+      <div class="doc-meta-row"><span class="doc-meta-label">Previous report</span><span class="doc-meta-val">Update #1, 2026-09-11T00:15Z (<a href="https://serve.context.roboalch.com/a/lnk_8A9RHY97STBWHYZ232QF6YVPF8">lnk_8A9RHY97…</a>)</span></div>
+      <div class="doc-meta-row"><span class="doc-meta-label">Window covered</span><span class="doc-meta-val">2026-09-11T00:15Z → 2026-09-11T00:35Z</span></div>
+      <div class="doc-meta-row"><span class="doc-meta-label">Verdict</span><span class="doc-meta-val">No new working CMP/SM80 run; one code fix + one release tag; our own Schaka-recipe deployment is now loading</span></div>
+    </div>
+
+    <div class="alert">
+      <strong>Still the only CMP-170HX result anywhere:</strong> Schaka's <code>170hx-journey</code> clanker on 8× CMP 170HX (SM80, TP4×PP2). No second independent report has appeared. We have now built his exact recipe and are bringing it up on the same host.
+    </div>
+
+    <h2 id="sec-1"><span class="sec-num">1.</span>What changed since Update #1</h2>
+    <ul>
+      <li><strong>artlair/vllm-backport</strong> advanced one commit: <code>7ee0c87e</code> (2026-09-10T23:58Z) — "stream the MXFP4 Marlin MoE repack in place, per expert". Repack transient peak <strong>2100 MiB → 9.4 MiB</strong>; fixes an <code>expandable_segments: memory mapping failed</code> OOM during <code>process_weights_after_loading</code> on the 9-layer PP stages. Robustness, not coherence.</li>
+      <li><strong>wtdcode/vllm-backport</strong> published annotated tag <strong>v0.13.0</strong> (<code>7763d980</code> → <code>a3507666</code>, 17:40Z): "DeepSeek-V4.1-Flash and Vision-Exp on Ampere". This is the SM80/A100 release vehicle; still author-reported, no independent SM80 quality log.</li>
+      <li><strong>HuggingFace</strong> doc hazard (vcruz305 GGUF README): V4's hardcoded FP8 block size <strong>128</strong> vs V4.1's <strong>[32,32]</strong> silently rescales weights — "loads and reads fluently while being numerically wrong." Directly relevant to our class of bug.</li>
+      <li><strong>No change</strong> to Schaka/170hx-journey (<code>53a61e64a</code>), the seven vLLM V4.1 PRs, or the SGLang set.</li>
+      <li><strong>Discord:</strong> zero V4.1 messages after 2026-09-11T00:00Z (all 62 new messages are #hardware).</li>
+    </ul>
+
+    <h2 id="sec-2"><span class="sec-num">2.</span>GitHub &amp; upstream deltas</h2>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Repo / ref</th><th>SHA</th><th>UTC</th><th>What changed / relevance</th></tr></thead>
+      <tbody>
+        <tr><td>artlair/vllm-backport <code>dsv41-flash</code></td><td>7ee0c87e</td><td>23:58:43</td><td>In-place MXFP4 Marlin MoE repack; OOM fix. (Prior HEAD 7ff0b2b7 has the coherent sm86 real-weights harness.)</td></tr>
+        <tr><td>wtdcode/vllm-backport <code>v0.13.0</code></td><td>7763d980→a3507666</td><td>17:40</td><td>Annotated release tag: V4.1-Flash on Ampere. Author-reported; no published SM80 log.</td></tr>
+        <tr><td>Schaka/170hx-journey <code>main</code></td><td>53a61e64a</td><td>22:48</td><td>Unchanged since Update #1. Only CMP-170HX/SM80 V4.1 kit.</td></tr>
+        <tr><td>vllm #56214 (V4.1 model)</td><td>e47aa780</td><td>07:23</td><td>Reviews added 14:32–16:07Z; still open/unmerged. Our engine base.</td></tr>
+        <tr><td>vllm #56120 [DS-V4][SM80]</td><td>ebc49026</td><td>09-09</td><td>Still merge-conflicted/stalled — the upstream SM80 enablement PR.</td></tr>
+        <tr><td>vllm #56344 / #56357 / #56320 / #56349</td><td>various</td><td>17:08–23:35</td><td>Attention MegaKernel (SM100), Engram prefetch/mmap, DSpark KV insert, ROCm graphs. No SM80 runtime.</td></tr>
+      </tbody>
+    </table></div>
+    <p>No new GitHub issue/PR reporting V4.1 garbage/incoherent output on SM80 appeared. Closest is vLLM #50576 (V4-<em>Flash</em>, A800/A6000), outside this window.</p>
+
+    <h2 id="sec-3"><span class="sec-num">3.</span>HuggingFace &amp; Reddit</h2>
+    <h3>HuggingFace (lastModified ≥ 2026-09-11T00:00Z)</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Repo</th><th>Modified</th><th>SM80/A100/CMP?</th><th>Result</th></tr></thead>
+      <tbody>
+        <tr><td>vcruz305/DeepSeek-V4.1-Flash-GGUF</td><td>00:22Z</td><td>No (llama.cpp)</td><td>Documents the FP8 block-128-vs-[32,32] silent-wrongness hazard; no eval. Runtime not in the patch.</td></tr>
+        <tr><td>rapid-mlx/…REAP-2bit-MLX</td><td>00:10Z</td><td>No (Apple M3 Ultra)</td><td>Greedy stable; prefill/decode parity ≤1.4e-6; 7.31 tok/s — "not product-qualified".</td></tr>
+      </tbody>
+    </table></div>
+    <p>Official repo discussions #28–#31: no new post since 2026-09-10T18:15Z; zero <code>sm80|a100|170hx|ampere|correct|garbage</code> hits.</p>
+    <h3>Reddit</h3>
+    <p>No new post with a CMP/170HX/A100/Ampere/SM80 V4.1 claim. The only SM80-flavoured pages are <strong>AI-generated SEO spam</strong> (<code>sortlink.store</code>, <code>metrist.cloud</code>, <code>techmetric.store</code>, …) with boilerplate like "on an SM80 (referring to NVIDIA's Hopper architecture) … past 500 tokens per second" — factually wrong (SM80 is Ampere) and methodologically empty. <em>Do not cite.</em></p>
+
+    <h2 id="sec-4"><span class="sec-num">4.</span>Discord — dsum <code>cmpunlocker</code></h2>
+    <p>Refreshed snapshot 2026-09-11T00:26Z (142 MB export, latest server message 00:25:13Z). <strong>62 new messages, all in #hardware, none V4.1-related.</strong> Schaka's claim remains the only one:</p>
+    <div class="table-wrap"><table>
+      <thead><tr><th>UTC</th><th>Author</th><th>Quote</th></tr></thead>
+      <tbody>
+        <tr><td>2026-09-10T16:31Z</td><td>schakaqt</td><td>"Anyone got numbers for 4.1 yet? I have it working on 8 cards at 27 tps so far, no dspark yet"</td></tr>
+        <tr><td>2026-09-10T20:20Z</td><td>schakaqt</td><td>"4.1 flash? So far seems fine. But I'Ve only gotten it to work on 8 cards. DSpark works too."</td></tr>
+        <tr><td>2026-09-10T14:08Z</td><td>schakaqt</td><td>"It's not fully working yet with 1m, clanker still on it." (1M context was still WIP)</td></tr>
+      </tbody>
+    </table></div>
+    <p>No second user reports a working CMP170HX/SM80 V4.1. Others are plans (CUTE), failures (OB88594, "4-card cluster freeze"), or open questions.</p>
+
+    <h2 id="sec-5"><span class="sec-num">5.</span>Our campaign status — now running Schaka's recipe</h2>
+    <p>Our own engine (<code>dsv41-feat</code> @ <code>e47aa780</code>) boots and serves but emits incoherent text; the failure localises to a ~150× shrink in the attention output projection. Rather than keep debugging, we pivoted to the one proven path:</p>
+    <ul>
+      <li>Pulled base <code>lazymio/vllm-backport:v0.12.0-sm80</code>; applied upstream PR #56201 + Schaka's <code>fixups.py</code> + <code>ampere/</code> shims + PP-KV relay → <strong>92 changed files</strong>.</li>
+      <li>Built <code>localhost/vllm-backport-v41:sm80</code> as a Python overlay (no native rebuild) — matching his published kit.</li>
+      <li>Launched <code>dsv41-schaka</code> on :8090: TP4×PP2, <code>TRITON_MLA_SPARSE_DSV41</code>, <code>fp8_ds_mla</code>, block-128, DSpark k=5, max-model-len 1,048,576, <code>VLLM_PP_LAYER_PARTITION=20,20</code>.</li>
+      <li>Status at write time: <strong>loading weights</strong> (GPUs resident ~38 GiB each; <code>DeepseekV41ForCausalLM</code>, max len 1048576).</li>
+    </ul>
+    <div class="alert alert-warn"><strong>Why his recipe matters:</strong> it closes exactly the SM80 gaps we hit — the MXFP8 block-scale layout ([N/32,K/32]→[N,K/32]), routing <code>wo_a</code> to the emulation kernel (Marlin repacks 4 fp8→int32), replacing the V4.0 9-arg qnorm op (dropping V4.1's <code>apply_q_norm</code> normalises Q twice → wrong output, no error), the CuteDSL SM gate, the compressor cache groups, and a PP relay that makes the layers-20–39 KV-sharing group splittable.</div>
+
+    <h2 id="sec-6"><span class="sec-num">6.</span>Evidence quality</h2>
+    <ul>
+      <li><span class="rating r-strong"><span class="rating-dot"></span>locally measured</span> our engine boot/health; our Schaka-recipe overlay build (92 files) and launch.</li>
+      <li><span class="rating r-partial"><span class="rating-dot"></span>author-reported</span> all Schaka / artlair / wtdcode throughput &amp; quality figures.</li>
+      <li><span class="rating r-weak"><span class="rating-dot"></span>disregarded</span> SEO-spam "SM80=Hopper" pages.</li>
+      <li>Checked APIs: HuggingFace, GitHub, Docker Hub, and the dsum <code>cmpunlocker</code> snapshot (2026-09-11T00:26Z).</li>
+    </ul>
+
+    <p class="footer-note">Update #2 of the DeepSeek-V4.1-Flash CMP-170HX campaign. Supersedes Update #1 (2026-09-11T00:15Z). Raw findings: <code>reports/2026-09-11-dsv41-since-launch-report.md</code> in the junk-tokens repo.</p>
+  </main>
+</div>
+</body>
+</html>
