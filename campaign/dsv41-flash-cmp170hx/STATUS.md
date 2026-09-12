@@ -1176,6 +1176,57 @@ real-OpenCode); PP8 util 0.96 when maximum KV capacity / concurrency headroom is
 the goal (9.35M tokens, 8.9x at 1M); aggregate decode at length is ~114 tok/s
 @128k and ~60 tok/s @512k on either layout.
 
+### Sparse-MLA decode-kernel knob sweep (2026-09-12)
+
+Our tree's decode kernel hardcoded `block_h = 16` and `block_k = 32`; the
+documented `VLLM_SPARSE_DECODE_MAXNREG` knob is **dead code** — its helper
+`_decode_maxnreg_kwargs()` has no caller, so the earlier MAXNREG=128 test
+measured nothing. Added two real env knobs (`patches/0008`):
+`VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE` and `VLLM_SPARSE_DECODE_TOPK_CHUNK_SIZE`.
+
+PP8 (util 0.96, SEQS 32), 512k, vs baseline:
+
+| arm | c1 512-tok | 512k c8 | c16 | c32 |
+|---|---|---|---|---|
+| PP8 baseline | 53.0 | 45.7 | 55.2 | 60.2 |
+| HEAD_BLOCK_SIZE=32 | **54.3** | **47.4** | 54.5 | **61.6** |
+| + TOPK_CHUNK_SIZE=16 | 49.1 | 43.8 | 54.3 | 61.7 |
+
+`HEAD_BLOCK_SIZE=32` (halves the head-tiles that each re-read the same KV slots)
+is a consistent ~+2-4% and bit-identical; `TOPK_CHUNK_SIZE=16` hurts c1. Folded
+in: PP8 default now sets `VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE=32`. Accuracy
+re-validated: needle 4/4 at 128k/512k. The small size of the gain confirms
+512k decode is **not KV-bandwidth-bound** (consistent with the SM-occupancy
+diagnostic) — the residual cost is per-step latency, not bytes.
+
+### Upstream follow: vLLM DeepSeek-V4.1 tracking (2026-09-12)
+
+`#56400` is the official DeepSeek-V4.1 tracking issue (labels `deepseek`,
+`DSv4`, `DSv4.1`). Keystone `#56214` (`DeepseekV41ForCausalLM` registry) and
+model defs `#56228` are merged. Its kernel/PP/Engram work (sparse indexer
+`#56254`, attention megakernel `#56344`, Engram overlap/prefetch `#56219-24`,
+`#56357` share host tables via mmap, PP relay `#56221-23`) is Hopper/Blackwell/
+ROCm-first. SM80 support is **open/unmerged** (`#56120` port, `#56119` o_proj
+fix, sparse-MLA portability `#55177/#55184/#47629`, Ampere fp8-KV `#48374/
+#52202`). Two items to track for us: `#50576` (SM8x Ampere DSv4 tracker; a
+concrete **int32 overflow in `mqa_logits_triton.py`** — our indexer path, check
+at long context) and `#55279` (names CMP 170HX: DFlash2 spec-decode Xid 31 OOB).
+Merged pieces portable in principle: `#56160` (sparse settings via hf config),
+`#56215` (MLA epilogue `apply_q_norm`, group_size=32 packed FP8), `#56562`.
+
+### KV pool accounting: no free capacity (audit, 2026-09-12)
+
+A capacity audit refuted the earlier "accounting waste" hypothesis: the pool is
+`available_rank / bytes_per_block_rank` (`kv_cache_utils.py:1708`), where the
+binding group's page is the real MLA cache (2340 B/token × 128 block). The SWA
+`window+max_in_flight` reservation only inflates the *advertised* concurrency
+metric and the per-request admission cap, **not** `num_blocks`. `--max-num-seqs`
+does not appear in any sizing formula. So usable capacity is physically
+`HBM-after-weights / fp8_ds_mla bytes-per-token` — real levers are PP8 (measured,
+2.75x) and a PP rebalance (the `7,7,7,7,7,5` split co-locates both kv-source
+layers 14+20 on one rank). A 4-bit KV remains the only path to more blocks, and
+it is SM80 kernel work.
+
 ### MoE backend A/B: Humming vs Marlin (2026-09-12)
 
 `moe_backend=humming` is a valid explicit choice for this model's MXFP4 experts

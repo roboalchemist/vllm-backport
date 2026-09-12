@@ -20,12 +20,15 @@ KVDTYPE=${KVDTYPE:-fp8_ds_mla}
 KERNELEXTRA=${KERNELEXTRA:-}
 KVTRANSFER=${KVTRANSFER:-}
 RETENTION=${RETENTION:-}
+MAXNREG=${MAXNREG:-}
+EXTRA_ENV=${EXTRA_ENV:-}
+EXTRA_MOUNTS=${EXTRA_MOUNTS:-}
 D() { sudo -n docker --host "$ISO" "$@"; }
 
 CACHE=/mnt/kv/cache/dsv41; mkdir -p "$CACHE"/{vllm,flashinfer,triton,nv,humming,cupy,tilelang}
 D rm -f "$NAME" >/dev/null 2>&1 || true
 
-ENVF=(-e OMP_NUM_THREADS=1 -e PYTORCH_CUDA_ALLOC_CONF=${ALLOC_CONF:-expandable_segments:True} -e NCCL_ALGO=${NCCL_ALGO:-Ring} -e NCCL_PROTO=${NCCL_PROTO:-Simple} ${NCCL_P2P_LEVEL:+-e NCCL_P2P_LEVEL=$NCCL_P2P_LEVEL})
+ENVF=(-e OMP_NUM_THREADS=1 -e PYTORCH_CUDA_ALLOC_CONF=${ALLOC_CONF:-expandable_segments:True} -e NCCL_ALGO=${NCCL_ALGO:-Ring} -e NCCL_PROTO=${NCCL_PROTO:-Simple} ${NCCL_P2P_LEVEL:+-e NCCL_P2P_LEVEL=$NCCL_P2P_LEVEL} ${MAXNREG:+-e VLLM_SPARSE_DECODE_MAXNREG=$MAXNREG} ${EXTRA_ENV})
 [ -n "$PART" ] && ENVF+=(-e "VLLM_PP_LAYER_PARTITION=$PART")
 
 D run -d --name "$NAME" --init --restart no --runtime nvidia \
@@ -37,6 +40,7 @@ D run -d --name "$NAME" --init --restart no --runtime nvidia \
   ${MARLIN_ATOMIC:+-e VLLM_MARLIN_USE_ATOMIC_ADD=$MARLIN_ATOMIC} \
   -v "$MODEL":/model:ro \
   ${OVERLAY_MOUNT:+-v $OVERLAY_MOUNT:/usr/local/lib/python3.12/dist-packages/vllm/v1/attention/backends/utils.py:ro} \
+  ${EXTRA_MOUNTS} \
   -v /mnt/kv/bench:/bench:ro \
   -v "$CACHE/vllm":/root/.cache/vllm -v "$CACHE/flashinfer":/root/.cache/flashinfer \
   -v "$CACHE/triton":/root/.triton -v "$CACHE/nv":/root/.nv \

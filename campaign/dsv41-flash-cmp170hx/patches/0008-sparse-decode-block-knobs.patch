@@ -1,0 +1,44 @@
+--- vllm.orig/envs.py	2026-09-12 06:38:16.127369914 +0000
++++ vllm/envs.py	2026-09-12 15:52:41.165833731 +0000
+@@ -193,6 +193,8 @@
+     VLLM_INDEXER_LOGITS_KV_GROUP_MIN_M: int = 0
+     VLLM_INDEXER_PAGED_Q_BF16: bool = True
+     VLLM_SPARSE_DECODE_MAXNREG: int = 0
++    VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE: int = 0
++    VLLM_SPARSE_DECODE_TOPK_CHUNK_SIZE: int = 0
+     VLLM_SPARSE_DENSE_QUERY_BLOCK: int = -1
+     VLLM_SPARSE_DENSE_QUERY_BLOCK_DECODE: int = -1
+     VLLM_MARLIN_FP8_DEQUANT_BF16: bool = False
+@@ -1654,6 +1656,12 @@
+     "VLLM_SPARSE_DECODE_MAXNREG": lambda: int(
+         os.environ.get("VLLM_SPARSE_DECODE_MAXNREG", "0")
+     ),
++    "VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE": lambda: int(
++        os.environ.get("VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE", "0")
++    ),
++    "VLLM_SPARSE_DECODE_TOPK_CHUNK_SIZE": lambda: int(
++        os.environ.get("VLLM_SPARSE_DECODE_TOPK_CHUNK_SIZE", "0")
++    ),
+     # Query tile for the compress_ratio=128 sparse-attention layers, whose index
+     # list is not a selection but the positional identity prefix
+     # (sparse_mla.py::_build_c128a_topk_metadata_kernel). Consecutive queries
+--- vllm.orig/v1/attention/ops/rocm_aiter_mla_sparse.py	2026-09-12 06:38:17.660367145 +0000
++++ vllm/v1/attention/ops/rocm_aiter_mla_sparse.py	2026-09-12 15:52:41.722833120 +0000
+@@ -3798,7 +3798,7 @@
+         extra_indices = torch.empty(0, device=q.device, dtype=torch.int32)
+         extra_indptr = torch.zeros(num_queries + 1, device=q.device, dtype=torch.int32)
+ 
+-    block_h = 16
++    block_h = envs.VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE or 16
+     if out is None:
+         out = torch.empty_like(q, dtype=torch.bfloat16)
+     else:
+@@ -3855,7 +3855,7 @@
+         )
+         return out
+ 
+-    block_k = 32  # KV tokens walked per split-K iteration. Tuned on gfx950.
++    block_k = envs.VLLM_SPARSE_DECODE_TOPK_CHUNK_SIZE or 32  # KV tokens walked per split-K iteration. Tuned on gfx950.
+     if _ON_GFX950:
+         inv_q = 1.0 / max(1, num_queries)
+         avg_main_len = main_indices.numel() * inv_q
