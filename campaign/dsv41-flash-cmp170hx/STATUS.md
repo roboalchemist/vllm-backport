@@ -785,3 +785,204 @@ remaining headroom is the Marlin MXFP4 MoE GEMV / sm_80 sparse-MLA decode kernel
 | gateways (local, Tailscale, Bifrost, landing) | all live |
 
 PP6 is the served, fully validated PP config with the corrected relay.
+
+## Third-party depth: zebgop-ops REAP-272E (2026-09-12)
+
+Reviewed `zebgop-ops/dsv41reap-pp` (new today). It serves
+`LibertAIDAI/DeepSeek-V4.1-Flash-REAP-272E` (272/384 routed experts, native MXFP4/FP8)
+on **4× CMP 170HX, PP4 (partition 10,10,10,10)**.
+
+- REAP prunes experts so each layer's experts fall from 6.72 to 4.76 GiB; that lets a
+  PP4 partition keep **every expert on the GPUs**. The unpruned model on 4 cards must
+  CPU-offload nine layers' experts, capping decode at 14-22 tok/s and prefill ~100.
+- Author-reported REAP numbers: free prose ~30, code 60-110 / fresh ~85 tok/s, prefill
+  ~3k tok/s; cost +4.1% text perplexity; greedy code-edit byte-identical to unpruned.
+- Their own FINDINGS: decode step ~29-37 ms of GPU time across four ranks + ~5-7 ms
+  round trip, "within ~15% of the hardware's ceiling with PP4 over PCIe Gen2". Prefill
+  is compute-bound in the Marlin MXFP4 expert GEMMs (~400-500 ms per 2048-token chunk).
+
+**Relevance to us:** REAP's win is for CPU-offload setups. Our PP6 already keeps all
+experts on-GPU, and our single-stream (96.9-105 tok/s) is ~3x their REAP PP4 prose rate.
+So the REAP path is not a c1 lever here. Their repo does carry a useful debug toolkit
+(`DSV41_DEBUG_TIMING/PROFILE/TRACE`, `torch.profiler` on the 41st decode step,
+per-layer wall time) that is a porting reference for attributing our c1 ~10 ms/token.
+
+## c1 bottleneck diagnostic: SM-occupancy-bound, NOT DRAM-bound (2026-09-12)
+
+`nvidia-smi dmon -s um` sampled during a sustained c1 decode (600-token, PP6):
+
+| GPU | sm % | mem % |
+|---|---|---|
+| 0-3 | ~99-100 % | 4-5 % |
+| 4-5 | 29-88 % | 4-14 % |
+
+The SM utilization is saturated while the **DRAM/memory-controller utilization
+is only ~4-5%**. So the c1 ~10 ms/token is **latency / SM-occupancy bound, not
+memory-bandwidth bound** (an earlier note guessed bandwidth — corrected here).
+At batch-1 the Marlin MXFP4 MoE GEMV and the sparse-MLA decode launch too few
+warps to hide latency, so the SMs sit busy-but-stalled and DRAM is idle.
+
+Consequence: c1 headroom is a **parallelism** problem inside the batch-1
+kernels (more warps / split-K / a fused batch-1 GEMV), not a bandwidth problem —
+which is also why aggregate decode scales so well with concurrency. This is the
+concrete target for any kernel edit; no configuration lever addresses it.
+
+## Real-OpenCode c1 benchmark (repeatable Docker harness) — 2026-09-12
+
+Per the "c1 is measured via real OpenCode usage" requirement, built
+`opencode-bench/`: a repeatable Docker image (`localhost/dsv41-opencode-bench`,
+Ubuntu 24.04 + opencode 1.18.30 + python3, `--network host` to reach the model)
+that runs the real OpenCode agent on three real coding tasks against a bundled
+fixture (`src/textstats.py` with two live bugs + a test file): fix_bugs,
+add_feature, docstring. Each arm reports wall time, steps, server-reported
+input/output/reasoning tokens, and end-to-end output tok/s.
+
+Measured on PP6 (`deepseek-v4.1-flash`, DSpark k=5):
+
+| task | wall s | steps | in / out tok (reasoning) | end-to-end out tok/s |
+|---|---|---|---|---|
+| fix_bugs r1 | 15.5 | 5 | 1,853 / 581 (110) | 37.4 |
+| add_feature r1 | 20.6 | 6 | 1,949 / 828 (34) | 40.1 |
+| docstring r1 | 16.9 | 6 | 1,557 / 597 (82) | 35.3 |
+| fix_bugs r2 | 88.0 | 12 | 10,810 / 1,287 (3,199) | 14.6 |
+| add_feature r2 | 14.1 | 5 | 1,685 / 373 (126) | 26.4 |
+| docstring r2 | 8.2 | 2 | 534 / 67 (126) | 8.2 |
+
+**Real code-usage c1 ≈ 30 tok/s end-to-end (median), range 8-48.** The spread is
+dominated by reasoning-token volume and step count, not by raw decode: the
+drafting is DSpark rate-limited (~100 tok/s single-stream), while an 8.8k-token
+prompt plus tool-call turns adds seconds of prefill per task. This is the honest
+real-world c1 number to optimize against.
+
+## LMCache blocker root-caused: wrong connector class, fix = MP connector (2026-09-12)
+
+Arm: PP6 + `--kv-transfer-config {"kv_connector":"LMCacheConnectorV1","kv_role":"kv_both"}`
+with `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False` (the first rejection:
+the in-process connector refuses `expandable_segments:True`). Weights loaded, the
+relay owned the indexer K cache, then ~12 min in the engine died:
+
+```
+WARNING [vllm.py:1899] Turning off hybrid kv cache manager because
+  `--kv-transfer-config` selects a KV connector that does not support it.
+...
+WARNING [kv_cache_utils.py:1895] Hybrid KV cache manager is disabled for this
+  hybrid model ...
+ERROR [core.py:1382] [...] kv_cache_utils.py:2206 in get_kv_cache_groups
+  -> kv_cache_spec.update(_promote_local_kv_cache_specs(kv_cache_spec))
+  -> kv_cache_utils.py:1841 raise ValueError(
+       "Failed to promote local KV cache specs to one unified type.")
+```
+
+Cause chain, verified in source (`/mnt/kv/build/schaka-v13/vllm`):
+
+1. `LMCacheConnectorV1` does **not** subclass `SupportsHMA`, so
+   `config/vllm.py:1897` sets `disable_hybrid_kv_cache_manager=True`.
+2. With HMA off, `get_kv_cache_groups` (kv_cache_utils.py:2205) calls
+   `unify_hybrid_kv_cache_specs` -> `_promote_local_kv_cache_specs`.
+3. V4.1 emits two MLA-family specs that do not merge after promotion:
+   - `MLAAttentionSpec` (main/indexer; `state_content_bytes=584`, packed
+     448B NoPE + 128B RoPE + 8B fp8 scale per token) —
+     `models/deepseek_v4/attention.py:1050,1095`.
+   - `SlidingWindowMLASpec` (compressor) —
+     `models/deepseek_v4/compressor.py:179`, promoted to `MLAAttentionSpec`
+     but with a different page size, so `is_kv_cache_spec_uniform` and
+     `UniformTypeKVCacheSpecs.is_uniform_type` both return False -> raise.
+
+The in-process `LMCacheConnectorV1` adapter
+(`lmcache/integration/vllm/vllm_v1_adapter.py`, `LMCacheConnectorV1Impl`) has no
+`kv_cache_config`, no `kv_layer_groups`, and no group index anywhere: it is
+**single-group by construction** and cannot serve V4.1's multi-group layout.
+
+The correct path is already shipped and is HMA-capable:
+`lmcache/integration/vllm/lmcache_mp_connector.py` declares
+`class LMCacheMPConnector(KVConnectorBase_V1, SupportsHMA)` and implements
+`request_finished_all_groups`. It validates the real group set at startup
+(`validate_mamba_step_alignment`, `validate_kv_cache_groups`,
+`get_group_tokens_per_block`). Its group model matches V4.1 exactly —
+`lmcache/v1/kv_layer_groups.py` keys groups on
+`(kv_size, num_heads, head_size, block_size, engine_group_idx, dtype,
+engine_kv_format)` and explicitly calls out "a rank-5 K/V group alongside a
+rank-3 key-only indexer cache" (DeepSeek-V4).
+
+`lmcache` + `lmcache server` (ZMQ MP server; `--l1-size-gb`, `--eviction-policy`)
+are both installed in the image. So LMCache-for-V4.1 = `LMCacheMPConnector`
+(+ server), **not** `LMCacheConnectorV1`. Per AGENTS.md the MP server must be
+restarted before the vLLM service that attaches to it.
+
+### RESOLVED: LMCache serving V4.1 (2026-09-12)
+
+The MP path works. Exact recipe, each step forced by a concrete error:
+
+1. Start the LMCache MP server **with GPU access** (it opens the vLLM workers'
+   CUDA IPC KV handles, so it must see the same GPU UUIDs):
+   ```
+   docker run -d --name lmcache-mp --init --runtime nvidia \
+     --network host --ipc host --shm-size 32g --security-opt label=disable \
+     --entrypoint /usr/local/bin/lmcache \
+     -e LMCACHE_DISABLE_BANNER=1 -e NVIDIA_VISIBLE_DEVICES=0,1,2,3,4,5 \
+     localhost/vllm-backport-v41:sm80-v13 \
+     server --host 127.0.0.1 --port 6667 --l1-size-gb 32 --eviction-policy LRU
+   ```
+   Without `--runtime nvidia`: `RuntimeError: Device UUID ... not found in the
+   discovered devices. Please make sure the process can see all the accelerator
+   devices` -> workers time out with `LMCache server did not respond to
+   register_kv_caches within 300.0s`.
+2. Launch vLLM with the MP connector + a retention interval that is a divisor of
+   the 256-token LMCache chunk:
+   ```
+   --prefix-cache-retention-interval 256 \
+   --kv-transfer-config '{"kv_connector":"LMCacheMPConnector","kv_role":"kv_both",
+     "kv_connector_extra_config":{"lmcache.mp.host":"tcp://127.0.0.1",
+     "lmcache.mp.port":6667}}'
+   ```
+   `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:False`. Without the retention
+   interval: `ValueError: This model has recurrent or sliding-window KV cache
+   groups; LMCache needs a state checkpoint at every chunk boundary. Set
+   --prefix-cache-retention-interval to a divisor of the LMCache chunk size
+   (256, e.g. 256), got 0.`
+
+Startup evidence:
+```
+Creating v1 connector with name: LMCacheMPConnector and engine_id: ...
+Resolved LMCache MP geometry: group_tokens_per_block=[32, 32, 32, 32, 128, 0],
+  scheduler_block_size=128, cache_model_name=/model
+KV cache group edits applied: {'unified-attention-view': 10}
+Excluding non-prefix-cacheable engine group 5 (UniformTypeKVCacheSpecs, 1 layers)
+Application startup complete.
+```
+Note the exclude at group 5 — this is the "disposable KV group" exclusion the
+qwen3.8 LMCache patch documented; here LMCache's own connector does it.
+
+`serve_arrangement.sh` gained an optional `RETENTION` knob for this.
+
+Cold/repeat/restart-replay accuracy numbers: see the LMCache accuracy section
+below (and `scripts/validate_lmcache_v41.py`, logs in `/mnt/kv/logs/dsv41/`).
+
+### LMCache accuracy validation — PASS (2026-09-12)
+
+Harness `scripts/validate_lmcache_v41.py`: a 9.7k-token prompt with a planted
+retrieval key (`KEY-<nonce>`), greedy (temperature 0, seed 0), thinking off.
+Any correct run must answer `KEY-<nonce>`. Metrics are read from
+`vllm:external_prefix_cache_hits_total` and
+`vllm:prompt_tokens_by_source_total{source="external_kv_transfer"}`.
+
+| arm | prompt tok | elapsed s | answer | external_kv_transfer tok |
+|---|---|---|---|---|
+| cold, fresh nonce | 9,767 | 2.515 | `KEY-T8M2P1051` | 0 |
+| repeat, same server | 9,767 | 0.485 | `KEY-T8M2P1051` | 128 |
+| **after full vLLM restart** | 9,737 | 0.861 | `KEY-N7C41K1037` (== its cold answer) | **9,728** |
+
+* **Cold vs full-restore equality:** after restarting only vLLM (GPU KV wiped;
+  LMCache server untouched), the identical request restored **9,728 of 9,737
+  tokens from LMCache** and returned the exact same answer as its cold run.
+* **Same-server determinism:** repeat output is byte-identical to cold.
+* **Artifact ruled out:** an earlier run with `max_tokens=24` produced empty /
+  divergent continuations; that reproduced on a *fresh cold* run too
+  (`external_kv_transfer=0`), proving it was tight-token/reasoning truncation,
+  not a cache fault. With thinking disabled and 64 tokens the outputs are exact.
+
+So "100% output accuracy with LMCache" holds for full LMCache restore on this
+retrieval workload. Remaining LMCache work (not yet done): sustained multi-turn
+prefix accumulation, mixed concurrent hit/miss semantic equality, eviction/
+reload, and the L2 (disk) tier; and re-measuring the real-OpenCode c1 bench with
+LMCache attached to quantify the end-to-end prefix-reuse gain.

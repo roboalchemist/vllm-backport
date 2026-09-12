@@ -1,0 +1,12 @@
+[Unit]
+Description=Forward tailscale 100.64.0.119:8090 to the local DeepSeek-V4.1-Flash service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+ExecStart=/usr/bin/socat TCP-LISTEN:8090,bind=100.64.0.119,fork,reuseaddr TCP:127.0.0.1:8090
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,15 @@
+  ┃                                                                                                                                                             Token reply TUI-7391-MARLIN-OK
+  ┃  Reply with exactly the token: TUI-7391-MARLIN-OK
+  ┃                                                                                                                                                             Context
+                                                                                                                                                                23,462 tokens
+     TUI-7391-MARLIN-OK                                                                                                                                         2% used
+                                                                                                                                                                $0.00 spent
+     ▣  Dsv41-Direct · DeepSeek-V4.1-Flash TP4xPP2 CMP 170HX · 16.8s
+                                                                                                                                                                LSP
+                                                                                                                                                                LSPs are disabled
+  ┃
+  ┃
+  ┃                                                                                                                                                             /mnt/sdb/chunglet/gitea/junk-tokens:
+  ┃  Dsv41-Direct · DeepSeek-V4.1-Flash TP4xPP2 CMP 170HX DeepSeek-V4.1-Flash CMP 170HX (direct)                                                                main
+  ╹▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+   /mnt/sdb/chunglet/gitea/junk-tokens                                                                                           23.5K (2%)  ctrl+p commands    • OpenCode 1.18.30

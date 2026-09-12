@@ -1,0 +1,44 @@
+diff --git a/vllm/models/deepseek_v4_1/attention.py b/vllm/models/deepseek_v4_1/attention.py
+index 77e98a376e..a41c75b0f0 100644
+--- a/vllm/models/deepseek_v4_1/attention.py
++++ b/vllm/models/deepseek_v4_1/attention.py
+@@ -331,6 +331,11 @@ class DeepseekV4Attention(nn.Module, AttentionLayerBase, ABC):
+         )
+         self.wo_a.is_bmm = True
+         self.wo_a.bmm_batch_size = self.n_local_groups
++        # SM8x runs the ROCm BF16-reference o_proj, which dequantizes wo_a from
++        # the *raw* [N, K] fp8 weight. Marlin MXFP8 repacks the weight in place
++        # (4 fp8 -> int32 along K), destroying that layout, so tag the layer so
++        # the loader can stash the pre-repack copy first.
++        self.wo_a._dsv4_is_o_proj = True
+         self._o_proj_block_size = (
+             32 if getattr(self.wo_a, "weight_block_size", None) == [1, 32] else 128
+         )
+@@ -575,9 +580,18 @@ class DeepseekV4Attention(nn.Module, AttentionLayerBase, ABC):
+             o_padded,
+         )
+         o = o_padded[:, : self.n_local_heads, :]
++        if __import__("os").environ.get("DSV41_HIDDEN_DEBUG"):
++            import torch as _t
++            _h = hidden_states.float(); _op = o_padded.float(); _oo = o.float()
++            print(f"[ATTN] in absmax={_h.abs().max().item():.3f} o_padded absmax={_op.abs().max().item():.3f} o absmax={_oo.abs().max().item():.3f} o_padded_zero={bool((_op==0).all())}", flush=True)
+ 
+         # Inverse-RoPE + wo_a + wo_b output projection (platform-specific).
+-        return self._o_proj(o, positions)
++        out = self._o_proj(o, positions)
++        if __import__("os").environ.get("DSV41_HIDDEN_DEBUG"):
++            import torch as _t
++            _out = out.float()
++            print(f"[ATTN] out absmax={_out.abs().max().item():.3f} norm={_out.norm().item():.3f} out_zero={bool((_out==0).all())}", flush=True)
++        return out
+ 
+     @cached_property
+     def _can_fuse_query_quant(self) -> bool:
+@@ -1119,6 +1133,7 @@ class DeepseekV4Indexer(nn.Module):
+             candidate_blocks=candidate_block_buffer,
+             candidate_block_size=candidate_block_size,
+             candidate_write=candidate_write,
++            num_heads=self.n_head,
+         )
+ 
+     def _produce_k(

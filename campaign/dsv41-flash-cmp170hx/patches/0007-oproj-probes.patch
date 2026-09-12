@@ -1,0 +1,25 @@
+diff --git a/vllm/models/deepseek_v4_1/amd/rocm.py b/vllm/models/deepseek_v4_1/amd/rocm.py
+index 9271e7ae5a..7d9366248b 100644
+--- a/vllm/models/deepseek_v4_1/amd/rocm.py
++++ b/vllm/models/deepseek_v4_1/amd/rocm.py
+@@ -648,10 +648,20 @@ class DeepseekV41ROCMAiterMLAAttention(DeepseekV4Attention):
+             self.wo_a,
+         )
+         zf = z.flatten(1)
++        if __import__("os").environ.get("DSV41_HIDDEN_DEBUG"):
++            import torch as _t
++            _z = z.float(); _zf = zf.float()
++            _wa = self.wo_a.weight
++            _ws = getattr(self.wo_a, "weight_scale", None)
++            print(f"[OPROJ] z absmax={_z.abs().max().item():.4f} zf absmax={_zf.abs().max().item():.4f} wo_a.w={tuple(_wa.shape)}:{_wa.dtype} wo_a.scale={'None' if _ws is None else tuple(_ws.shape)} raw_stash={hasattr(self.wo_a,'_dsv4_raw_weight')} wo_b.scale={self._wo_b_scale is not None}", flush=True)
+         if self._wo_b_scale is not None and zf.dim() == 2:
+             result = self._bpre_attn_gemm(self.wo_b.weight, self._wo_b_scale, zf, True)
+         else:
+             result = self.wo_b(zf)
++        if __import__("os").environ.get("DSV41_HIDDEN_DEBUG"):
++            import torch as _t
++            _r = result.float()
++            print(f"[OPROJ] result absmax={_r.abs().max().item():.4f} norm={_r.norm().item():.4f}", flush=True)
+         return result
+ 
+     def forward_mqa(

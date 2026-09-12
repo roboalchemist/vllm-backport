@@ -1,0 +1,110 @@
+diff --git a/vllm/models/deepseek_v4/common/ops/cache_utils.py b/vllm/models/deepseek_v4/common/ops/cache_utils.py
+index 6838ef928d..6f35aaca66 100644
+--- a/vllm/models/deepseek_v4/common/ops/cache_utils.py
++++ b/vllm/models/deepseek_v4/common/ops/cache_utils.py
+@@ -31,6 +31,7 @@ from vllm.platforms import current_platform
+ from vllm.triton_utils import tl, triton
+ from vllm.utils.import_utils import has_cutedsl
+ from vllm.utils.math_utils import next_power_of_2
++from vllm.v1.attention.ops.fp8_sm80 import _decode_fp8_f32, _encode_fp8_u8
+ 
+ 
+ @triton.jit
+@@ -129,12 +130,8 @@ def quantize_and_insert_k_kernel(
+             x_scaled = x / scale
+             x_clamped = tl.clamp(x_scaled, -fp8_max, fp8_max)
+ 
+-            # Convert to fp8 (FNUZ on gfx942, OCP elsewhere), then bitcast to uint8.
+-            if use_fnuz:
+-                x_fp8 = x_clamped.to(tl.float8e4b8)
+-            else:
+-                x_fp8 = x_clamped.to(tl.float8e4nv)
+-            x_uint8 = x_fp8.to(tl.uint8, bitcast=True)
++            # Convert to fp8 (FNUZ on gfx942, OCP elsewhere) as raw bytes.
++            x_uint8 = _encode_fp8_u8(x_clamped, use_fnuz)
+ 
+             # Store as uint8 (1 byte each)
+             tl.store(token_fp8_ptr + offsets, x_uint8, mask=mask)
+@@ -305,14 +302,8 @@ def _dequantize_and_gather_k_kernel(
+                 # Load quantized fp8 values (stored as uint8)
+                 x_uint8 = tl.load(token_fp8_ptr + offsets, mask=mask, other=0)
+ 
+-                # Bitcast uint8 back to fp8 (FNUZ on gfx942, OCP elsewhere).
+-                if use_fnuz:
+-                    x_fp8 = x_uint8.to(tl.float8e4b8, bitcast=True)
+-                else:
+-                    x_fp8 = x_uint8.to(tl.float8e4nv, bitcast=True)
+-
+-                # Convert fp8 to float32 for computation
+-                x_float = x_fp8.to(tl.float32)
++                # Decode fp8 bytes (FNUZ on gfx942, OCP elsewhere) to f32.
++                x_float = _decode_fp8_f32(x_uint8, use_fnuz)
+ 
+                 # Load and decode UE8M0 scale
+                 # UE8M0: scale = 2^(stored_value - 127)
+diff --git a/vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py b/vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py
+index 4c9f464ef0..7cf214a5db 100644
+--- a/vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py
++++ b/vllm/models/deepseek_v4/common/ops/fused_compress_quant_cache.py
+@@ -26,6 +26,7 @@ import torch
+ 
+ from vllm.platforms import current_platform
+ from vllm.triton_utils import tl, triton
++from vllm.v1.attention.ops.fp8_sm80 import _encode_e4m3fn_u8
+ 
+ if current_platform.is_rocm():
+     from vllm.platforms.rocm import _ON_GFX950
+@@ -263,8 +264,7 @@ def _fused_kv_compress_norm_rope_insert_sparse_attn(
+     inv_scales_col = tl.reshape(inv_scales, (N_QUANT_BLOCKS, 1))
+     x_scaled = quant_2d * inv_scales_col
+     x_clamped = tl.clamp(x_scaled, -FP8_MAX, FP8_MAX)
+-    x_fp8 = x_clamped.to(tl.float8e4nv)
+-    x_uint8 = x_fp8.to(tl.uint8, bitcast=True)
++    x_uint8 = _encode_e4m3fn_u8(x_clamped)
+     x_uint8_flat = tl.reshape(x_uint8, (TRITON_BLOCK_SIZE,))
+ 
+     nope_mask = block < NOPE_HEAD_DIM
+@@ -483,7 +483,7 @@ def _finalize_norm_rope_quant_store_sparse_attn(
+     x_scaled = quant_2d * tl.reshape(inv_scales, (N_QUANT_BLOCKS, 1))
+     x_clamped = tl.clamp(x_scaled, -FP8_MAX, FP8_MAX)
+     x_uint8 = tl.reshape(
+-        x_clamped.to(tl.float8e4nv).to(tl.uint8, bitcast=True),
++        _encode_e4m3fn_u8(x_clamped),
+         (TRITON_BLOCK_SIZE,),
+     )
+     tl.store(fp8_ptr + block, x_uint8, mask=block < NOPE_HEAD_DIM)
+@@ -837,8 +837,7 @@ def _fused_kv_compress_norm_rope_insert_indexer_attn(
+ 
+     x_scaled = result_bf16 * inv_scale
+     x_clamped = tl.clamp(x_scaled, -FP8_MAX, FP8_MAX)
+-    x_fp8 = x_clamped.to(tl.float8e4nv)
+-    x_uint8 = x_fp8.to(tl.uint8, bitcast=True)
++    x_uint8 = _encode_e4m3fn_u8(x_clamped)
+ 
+     tl.store(fp8_ptr + block, x_uint8, mask=mask)
+ 
+diff --git a/vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py b/vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py
+index cc53f6bb36..3aa8e9861c 100644
+--- a/vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py
++++ b/vllm/models/deepseek_v4/common/ops/fused_inv_rope_fp8_quant.py
+@@ -12,6 +12,7 @@ import torch
+ from vllm.platforms import current_platform
+ from vllm.triton_utils import tl, triton
+ from vllm.utils.torch_utils import direct_register_custom_op
++from vllm.v1.attention.ops.fp8_sm80 import _encode_e4m3fn_u8
+ 
+ 
+ @triton.jit(do_not_specialize=["num_tokens"])
+@@ -133,7 +134,11 @@ def _fused_inv_rope_fp8_quant_per_head(
+         ),
+         (HEAD_DIM,),
+     )
+-    x_quant = tl.clamp(x / scales_exp, -fp8_max, fp8_max).to(tl.float8e4nv)
++    # SM8x stores the quantized row as raw e4m3 bytes; the bitcast only
++    # reinterprets them for the fp8 output buffer.
++    x_quant = _encode_e4m3fn_u8(
++        tl.clamp(x / scales_exp, -fp8_max, fp8_max)
++    ).to(tl.float8e4nv, bitcast=True)
+ 
+     out_base = (
+         out_ptr

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "dsv41-bench/deepseek-v4.1-flash",
+  "small_model": "dsv41-bench/deepseek-v4.1-flash",
+  "provider": {
+    "dsv41-bench": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DeepSeek-V4.1-Flash CMP170HX (bench)",
+      "options": {
+        "baseURL": "http://127.0.0.1:8090/v1",
+        "apiKey": "sk-noauth",
+        "timeout": false
+      },
+      "models": {
+        "deepseek-v4.1-flash": {
+          "name": "DSV4.1-Flash PP6",
+          "tool_call": true,
+          "reasoning": true,
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          }
+        }
+      }
+    }
+  },
+  "agent": {
+    "bench": {
+      "description": "Real coding bench agent",
+      "mode": "primary",
+      "model": "dsv41-bench/deepseek-v4.1-flash",
+      "temperature": 0,
+      "top_p": 1
+    }
+  }
+}

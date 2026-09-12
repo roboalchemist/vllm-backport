@@ -1,0 +1,85 @@
+diff --git a/vllm/models/deepseek_v4_1/ampere/ampere_sparse.py b/vllm/models/deepseek_v4_1/ampere/ampere_sparse.py
+new file mode 100644
+index 0000000000..35e9f4b6a8
+--- /dev/null
++++ b/vllm/models/deepseek_v4_1/ampere/ampere_sparse.py
+@@ -0,0 +1,44 @@
++# SPDX-License-Identifier: Apache-2.0
++# SPDX-FileCopyrightText: Copyright contributors to the vLLM project
++"""DeepSeek-V4.1 sparse MLA attention for SM8x (Ampere: A100 / CMP 170HX).
++
++Reuses the ROCm Triton sparse-MLA implementation wholesale: its kernels, ragged
++metadata builders, and bf16 ``o_proj`` reference path are plain Triton/torch
++(the aiter-only preshuffle GEMMs self-disable off ROCm), and
++``vllm.v1.attention.ops.fp8_sm80`` supplies e4m3 encode/decode below SM89 where
++Triton refuses native fp8 converts.
++
++This mirrors the V4.0 ``deepseek_v4.ampere.ampere_sparse`` port
++(``/mnt/sdb/src/vllm-dsv4``), adapted to the V4.1 model-driven backend enum.
++"""
++
++from vllm.models.deepseek_v4_1.amd.rocm import (
++    DeepseekV41ROCMAiterMLAAttention,
++    DeepseekV4ROCMAiterMLASparseBackend,
++)
++from vllm.platforms.interface import DeviceCapability
++
++
++class DeepseekV41AmpereMLASparseBackend(DeepseekV4ROCMAiterMLASparseBackend):
++    @staticmethod
++    def get_name() -> str:
++        return "TRITON_MLA_SPARSE_DSV41"
++
++    @classmethod
++    def supports_compute_capability(cls, capability: DeviceCapability) -> bool:
++        return capability.major == 8
++
++
++class DeepseekV41AmpereMLAAttention(DeepseekV41ROCMAiterMLAAttention):
++    """SM8x DeepSeek V4.1 attention: ROCm Triton path on CUDA Ampere."""
++
++    backend_cls = DeepseekV41AmpereMLASparseBackend
++
++    def __init__(self, *args, **kwargs) -> None:
++        super().__init__(*args, **kwargs)
++        # The ROCm parent clears ``is_bmm`` so wo_a keeps the ordinary linear
++        # kernel. On sm8x that kernel is Marlin, whose repack would destroy the
++        # raw [N, K] weight and block scale that ``rocm_inv_rope_einsum``
++        # dequantizes once into its bf16 cache. Restore the flag: both Marlin
++        # kernels (block FP8 and MXFP8) leave ``is_bmm`` layers untouched.
++        self.wo_a.is_bmm = True
+diff --git a/vllm/models/deepseek_v4_1/common/ops/query_quant.py b/vllm/models/deepseek_v4_1/common/ops/query_quant.py
+index 4894a615bc..4a44744dbf 100644
+--- a/vllm/models/deepseek_v4_1/common/ops/query_quant.py
++++ b/vllm/models/deepseek_v4_1/common/ops/query_quant.py
+@@ -7,6 +7,7 @@ from vllm.model_executor.layers.fusion.quant_activation import QuantizedActivati
+ from vllm.model_executor.layers.quantization.utils.quant_utils import kMxfp8Dynamic
+ from vllm.platforms import current_platform
+ from vllm.triton_utils import tl, triton
++from vllm.v1.attention.ops.fp8_sm80 import _encode_e4m3fn_u8
+ 
+ 
+ @triton.jit
+@@ -60,7 +61,12 @@ def _q_kv_norm_quant_kernel(
+             inv_bits = tl.where(sf == 0, 0, (254 - sf) << 23)
+             inv_scale = inv_bits.to(tl.float32, bitcast=True)
+             quantized = tl.reshape(grouped * inv_scale[:, None], (BLOCK,))
+-            tl.store(qo + row * Q_SIZE + cols, quantized, cols < Q_SIZE)
++            # ``qo`` is the fp8 output viewed as uint8; the encoder emits the
++            # e4m3fn bytes (RNE satfinite, bit-exact with the fp8 store) so
++            # pre-SM89 CUDA never asks Triton for a native fp8 convert.
++            tl.store(
++                qo + row * Q_SIZE + cols, _encode_e4m3fn_u8(quantized), cols < Q_SIZE
++            )
+         else:
+             sf = tl.full((BLOCK // 32,), 0, tl.uint32)
+         padded_groups: tl.constexpr = triton.cdiv(Q_SIZE // 32, 4) * 4
+@@ -107,7 +113,7 @@ def fused_q_kv_rmsnorm_quant(
+             kv,
+             q_weight,
+             kv_weight,
+-            qo,
++            qo.view(torch.uint8),
+             kvo,
+             scales,
+             tokens,

@@ -1,0 +1,66 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "model": "bifrost-dsv41/dsv41-flash-cmp/deepseek-v4.1-flash",
+  "small_model": "bifrost-dsv41/dsv41-flash-cmp/deepseek-v4.1-flash",
+  "default_agent": "dsv41-flash-bifrost",
+  "provider": {
+    "bifrost-dsv41": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "DeepSeek-V4.1-Flash CMP 170HX through Bifrost",
+      "options": {
+        "baseURL": "https://bifrost.roboalch.com/v1",
+        "apiKey": "{env:CHUNGLET_OPENCODE_VK}",
+        "timeout": false,
+        "headerTimeout": false
+      },
+      "models": {
+        "dsv41-flash-cmp/deepseek-v4.1-flash": {
+          "name": "DeepSeek-V4.1-Flash PP8 CMP 170HX",
+          "family": "deepseek",
+          "reasoning": true,
+          "temperature": true,
+          "tool_call": true,
+          "options": {
+            "temperature": 1,
+            "topP": 1
+          },
+          "interleaved": {
+            "field": "reasoning"
+          },
+          "limit": {
+            "context": 1048576,
+            "output": 65536
+          },
+          "modalities": {
+            "input": [
+              "text"
+            ],
+            "output": [
+              "text"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "agent": {
+    "dsv41-flash-bifrost": {
+      "description": "DeepSeek-V4.1-Flash on eight CMP 170HX GPUs through Bifrost",
+      "mode": "primary",
+      "model": "bifrost-dsv41/dsv41-flash-cmp/deepseek-v4.1-flash",
+      "temperature": 1,
+      "top_p": 1
+    },
+    "dsv41-flash-proof": {
+      "description": "Read-only deterministic qualification agent for DeepSeek-V4.1-Flash",
+      "mode": "subagent",
+      "model": "bifrost-dsv41/dsv41-flash-cmp/deepseek-v4.1-flash",
+      "temperature": 0,
+      "top_p": 1,
+      "tools": {
+        "*": false,
+        "read": true
+      }
+    }
+  }
+}
