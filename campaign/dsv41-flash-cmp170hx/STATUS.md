@@ -54,6 +54,27 @@ but the 512K cell dies, which is a regression-gate failure. Lowered PP8 to
 
 vllm-loop report: https://vllmloop.roboalch.com/r/43
 
+## Loop iteration 1: prefill-chunk size for the ITL tail — both rejected
+
+Hypothesis: the c4/c8 ITL p99 tail (0.6-2.3 s) is chunked-prefill interleaving;
+larger prefill chunks finish prefills sooner and reduce decode interruptions.
+
+- **`MAXBATCH=8192`: dead.** KV pool collapsed 7,859,683 -> 3,234,468 tokens
+  (activations reserve more) and c1 failed (fail=16).
+- **`MAXBATCH=1024`: rejected at startup** — `Chunked MM input disabled but
+  max_tokens_per_mm_item (1025) > max_num_batched_tokens (1024)`.
+
+So chunk size is constrained to ~[1030, small] and larger values cost KV — not a
+free ITL fix. Also: the ITL p99 tail appears in shared-prefix decode with **no
+prefill interleaving**, so it is a depth decode-step tail, not purely chunked
+prefill. The table's c8 is noisy (101.5 at util 0.96 vs 78.9 at 0.94), so the
+next iteration must harden the table (32+ prompts, 2 reps, report variance).
+
+Milestone probe on the restored baseline (util 0.94): **512K @ c16 aggregate
+decode 91.7 tok/s** (accept 36.6%), and live opencode c1 median **35.9 tok/s**
+(fix_bugs 21.5 / add_feature 45.0 / docstring 35.9). vllm-loop #44
+(https://vllmloop.roboalch.com/r/44).
+
 ## 1. Model facts (HF rev `df42c109f1defefcbfcedbe7d905718a12266e40`)
 
 - `DeepseekV41ForCausalLM`, `model_type=deepseek_v41`. 40 backbone layers
