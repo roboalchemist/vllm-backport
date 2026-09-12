@@ -635,3 +635,153 @@ spread (up to 40 s walls). Reverted. The default FULL_AND_PIECEWISE capture
 so the built-in torch profile path is not available. Per-kernel attribution of
 the c1 ~10 ms/token would need an out-of-band profiler (nsys/py-spy) inside the
 container. c1 config work is therefore complete; further gains are kernel edits.
+
+## KV cache size for 1M tokens (measured, PP8, 2026-09-12)
+
+Engine-reported accounting, Zanooda PP8 stack (TP1xPP8, fp8_ds_mla, 8 ranks):
+
+- GPU KV cache size: **6,170,576 tokens** (`Maximum concurrency for 1,048,576
+  tokens per request: 5.88x`).
+- Per-rank KV memory: PP0 17.89, PP1 19.67, PP2 19.28, PP3 20.95, PP4 16.88,
+  PP5 17.28, PP6 17.29, PP7 6.48 GiB -> **total 135.72 GiB**.
+- **23,617 bytes/token** whole-model (135.72 GiB / 6,170,576).
+- **1,048,576 tokens ≈ 23.06 GiB** (≈2.9 GiB per rank).
+
+The model card advertises ~890 B/token for its FP4 global KV; our sm_80 path is
+~26x that because it runs `fp8_ds_mla` (FP4 KV is rejected for MLA here) and
+stores the uncompressed indexer-K caches for the 8 indexer layers in addition to
+the 4 compressed KV groups. The pool is limited by the two binding ranks
+(PP7 6.48 GiB is the smallest KV budget; it also carries lm_head + drafter).
+
+## PP6 vs PP8 (measured, 2026-09-12) — PP6 wins c1
+
+Both correct (verified by the accuracy gate). PP6 uses Schaka's v0.13.0-based
+kit (TP1xPP6, partition 7,7,7,7,7,5, util 0.95); PP8 uses Zanooda's 13-patch
+stack (TP1xPP8, 5x8, util 0.95).
+
+| metric | PP6 (TP1xPP6) | PP8 (TP1xPP8) |
+|---|---|---|
+| pure single-stream decode (8-tok prompt) | **96.9 tok/s** | 43.2 |
+| pure single-stream @512 / 4k / 32k | 87.1 / 103.8 / 49.4 | 40.9 / 32.2 / 27.6 |
+| decode aggregate c8 (4k / 32k / 128k) | 146 / 159 / 164 | 155 / 137 / 128 |
+| decode aggregate c16 512k | 88.3 | 86.8 |
+| prefill c1 (4k / 128k / 512k) | 2,258 / 7,716 / 5,267 | 1,350 / 9,209 / 7,306 |
+| prefill c16 (4k / 128k / 512k) | 9,501 / 23,780 / 14,630 | 7,067 / 30,058 / 24,151 |
+| KV pool | 2,888,012 tok | 6,170,576 tok |
+| KV bytes/token (whole model) | **11,214 B** | 23,617 B |
+| KV for 1M tokens | **10.95 GiB** | 23.06 GiB |
+| accurate? | yes (needle 6/6) | yes (needle 3/3) |
+
+**PP6 is strictly better for our box at c1 and KV efficiency**, at the cost of a
+smaller total KV pool (6 cards vs 8). PP8's per-token KV is ~2x PP6's because its
+`pp_share` relay replicates the compressed/indexer caches across ranks. PP6 c1
+(96.9) is within 4% of the TP8xPP1 best (100.8) while remaining TP-free.
+
+## PP6 adopted as the PP default (2026-09-12)
+
+Per the c1-first + PP-only scope, **PP6 (TP1×PP6)** — Schaka's v0.13.0-based kit,
+partition 7,7,7,7,7,5, util 0.95, seqs 8 — is the served PP config:
+
+- **c1 single-stream: 96.9 tok/s (best-of-4), 107.6 tok/s with 93.8% DSpark
+  acceptance** on predictable content. Within noise of TP8×PP1 (100.8) and ~2.3×
+  faster than PP8 (43.2).
+- Validation: coherence ✓, needle 32k/128k 6/6, needle 512k 3/3, coding 5/5.
+- KV: 2,888,012-token pool (30.16 GiB over 6 ranks) -> 11,214 B/token ->
+  **1M tokens = 10.95 GiB**.
+- Prefill: 4k c1 2,258 / c16 9,501; 128k c1 7,716 / c16 23,780; 512k c1 5,267 /
+  c16 14,630 tok/s.
+- Decode aggregate (tok/s): 4k c8 146 / c16 142; 32k c8 159 / c16 160; 128k c8
+  164 / c16 150; 512k c8 85 / c16 88.
+
+Command: `IMG=localhost/vllm-backport-v41:sm80-v13 EP=1 SEQS=8 UTIL=0.95 \
+  serve_arrangement.sh 1 6 0,1,2,3,4,5 7,7,7,7,7,5 dsv41-schaka`
+
+## PP6 full validation (2026-09-12)
+
+- coherence ✓; needle 32k/128k 6/6; needle 512k 3/3; **needle 1M (1,048,576)
+  1/1** (exact recall, wall 288 s); coding 5/5.
+- OpenCode headless proof PASS; live TUI answered correctly server-side
+  (`PP6-TUI-7391-OK`, finish=stop) — the pane just failed to repaint.
+- c1 96.9-107.6 tok/s; KV 11,214 B/token -> 1M = 10.95 GiB.
+
+## PP6 relay fix adopted (Schaka c1b0907b, 2026-09-12)
+
+Rebuilt the PP6 overlay from Schaka's latest kit (14 changed files; the relay
+now adds `_build_index_k_replica` and "owns the indexer K cache
+language_model.model.layers.20.attn.indexer.k_cache"). This targets the
+prompt-corruption path he found (his 44k-token context check was 5/10 wrong
+before the fix, 0/10 after).
+
+Validation of our rebuilt PP6 (TP1xPP6, v13 image, 7,7,7,7,7,5, util 0.95):
+
+| check | result |
+|---|---|
+| relay log line | "kv-group relay owns the indexer K cache ... layers.20.attn.indexer.k_cache" |
+| coherence | Berlin/Paris/Canberra + `7391-MARLIN-42` |
+| needle 128k (15/50/85%) | 3/3 |
+| **multi-needle @44k (5 planted codes)** | **5/5** |
+| coding | 5/5 |
+| pure c1 (8 / 4k / 32k prompt) | 105.1 / 76.4 / 102.0 tok/s |
+
+PP6 stays the served PP config, now with the corrected relay.
+
+## PP6 sweep to the full 1M context (2026-09-12)
+
+Decode (prefix-cached, 128-256 tok out, `ignore_eos`), aggregate tok/s:
+
+| ctx | c1 | c2 | c4 | c8 | c16 |
+|---|---|---|---|---|---|
+| 4k | 49.2 | 91.1 | 108.9 | 146.4 | 141.5 |
+| 32k | 45.1 | 80.5 | 104.2 | 159.0 | 159.6 |
+| 128k | 42.6 | 65.9 | 100.4 | 164.5 | 150.0 |
+| 512k | 30.0 | 46.1 | 54.0 | 84.9 | 88.3 |
+| 1M | 15.9 | 22.4 | n/a | n/a | n/a |
+
+At 1M only c1/c2 fit: a single 1M request consumes ~1M of the 2,888,012-token
+pool (max concurrency 2.75x). DSpark acceptance rises to 51.7% at 1M.
+
+Prefill (unique random, TTFT -> tok/s): 4k c1 2,258 / c16 9,501; 128k c1 7,716 /
+c16 23,780; 512k c1 5,267 / c16 14,630; **1M c1 TTFT 342.5 s (~3.1k tok/s)**.
+
+Single-stream (pure, short prompt): 105.1 tok/s (8-tok), 102.0 (32k).
+
+## Gateways + OpenCode re-verified on PP6 (2026-09-12)
+
+- Service healthy on 127.0.0.1:8090 and via Tailscale 100.64.0.119:8090.
+- Bifrost provider `dsv41-flash-cmp` / `deepseek-v4.1-flash`: raw route returns
+  `BIFROST-PP6-OK`; gateway landing page HTTP 200 and lists the model.
+- **OpenCode through Bifrost returns `BIFROST-PP6-OPENCODE-OK`**; OpenCode direct
+  (headless) proof passed earlier on PP6.
+- So all four paths are live on the PP6 stack: local, Tailscale, Bifrost raw,
+  and OpenCode->Bifrost.
+
+## c1 lever: NCCL_P2P_LEVEL=SYS on PP6 (2026-09-12)
+
+Zanooda's scripts set `NCCL_P2P_LEVEL=SYS` (BAR1 P2P enabled box). Tested on PP6:
+
+| prompt | without | with P2P_LEVEL=SYS |
+|---|---|---|
+| 8 | 105.1 | 94.3 |
+| 4k | 76.4 | 92.2 |
+| 32k | 102.0 | 88.3 |
+
+Neutral within the large run-to-run spread (single draws vary 2.5-10 s). `nvidia-smi
+topo -p2p r` reports `GNS` for every pair (no direct peer path advertised), so the
+PP hops do not benefit measurably. Not a c1 win; c1 stays ~95-105 tok/s and its
+remaining headroom is the Marlin MXFP4 MoE GEMV / sm_80 sparse-MLA decode kernel.
+
+## PP6 validation complete (2026-09-12)
+
+| gate | result |
+|---|---|
+| coherence + planted fact | Berlin/Paris/Canberra + `7391-MARLIN-42` |
+| needle 32k/128k (15/50/85%) | 6/6 |
+| multi-needle @44k (5 codes) | 5/5 |
+| needle 512k | 3/3 |
+| needle 1M (1,048,576) | 1/1 |
+| accumulated multi-turn prefix (8 turns, ~13k tok) | HIT (`MULTITURN-885440-K`); recall turn 1.27 s vs 4.5 s fillers (prefix cache) |
+| coding (execute tests) | 5/5 |
+| OpenCode headless / TUI / through-Bifrost | PASS / answer correct / `BIFROST-PP6-OPENCODE-OK` |
+| gateways (local, Tailscale, Bifrost, landing) | all live |
+
+PP6 is the served, fully validated PP config with the corrected relay.

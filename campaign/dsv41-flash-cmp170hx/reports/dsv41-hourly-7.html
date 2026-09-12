@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #7</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #7</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #7 — progress + research delta</p>
+  <h1 class="doc-title">Depth raises per-token cost; upstream sparse-MLA work lands</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 17:30Z → 18:35Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Service</span><span class="doc-meta-val">TP4×PP2, HEALTHY on :8090</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Headline</span><span class="doc-meta-val">Corrected per-stream TPOT; upstream PP-relay + sparse-MLA decode fixes merged/opened</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>Correction: depth does raise per-token cost</h2>
+  <div class="alert alert-warn">An earlier note claimed "per-stream TPOT is flat with depth" — that used the harness's aggregate <code>tpot_ms</code> (wall / total tokens). True per-stream TPOT = wall × concurrency / completion_tokens and it <strong>grows with depth</strong>.</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Context</th><th>c32 aggregate (tok/s)</th><th>per-stream TPOT</th><th>per-stream (tok/s)</th></tr></thead>
+    <tbody>
+      <tr><td>4k</td><td>302.8</td><td>106 ms</td><td>9.5</td></tr>
+      <tr><td>32k</td><td>305.4</td><td>105 ms</td><td>9.5</td></tr>
+      <tr><td>128k</td><td>214.0</td><td>150 ms</td><td>6.7</td></tr>
+      <tr><td>512k</td><td>108.8</td><td>294 ms</td><td>3.4</td></tr>
+      <tr><td>512k (c64)</td><td>126.9</td><td>504 ms</td><td>2.0</td></tr>
+    </tbody>
+  </table></div>
+  <p>So the 512k aggregate is ≈ concurrency / per-stream TPOT, and per-stream TPOT rises ~5× from 4k to 512k. Reaching 500 tok/s @512k needs ~5× lower per-token cost at depth <em>or</em> ~4× more concurrency headroom.</p>
+
+  <h2><span class="sec-num">2.</span>Research delta</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Change</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td>vLLM <strong>#46994</strong></td><td><strong>MERGED</strong>: MTP spec decode under PP; fixes stale <code>topk_indices_buffer</code> for sparse-MLA, drafters get <code>SupportsPP</code></td><td>PP-relay correctness; author-reported acceptance 32.7%→93.5%</td></tr>
+      <tr><td>vLLM <strong>#53781</strong></td><td>HiSparse host-resident sparse-MLA decode hot-buffering (device-first spill tier)</td><td><strong>directly on the depth/decode wall</strong></td></tr>
+      <tr><td>vLLM #56227</td><td>SWA-bounded replay for V4.1 (reopened)</td><td>V4.1 attention/decode</td></tr>
+      <tr><td>vLLM #54674</td><td>DSpark stacked WKV projections — 1.043× @bs8 (author-reported)</td><td>spec decode</td></tr>
+      <tr><td>Zanooda repo</td><td>docs commit publishing already-run numbers; patch 0011 candidate-only indexer claimed bit-exact, 8× less indexer work</td><td>author-reported</td></tr>
+      <tr><td>#56439 / #56438</td><td>no movement; TP1×PP4 +144% vs own baseline but −38% vs TP4 (author-reported H100)</td><td>PP relay</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>No new SM80/CMP170HX kernel optimization or new independent working run in the window.</strong> Discord: Zanooda posted his RESULTS.md; no brand-new first-time V4.1 bring-up.</p>
+
+  <h2><span class="sec-num">3.</span>Next</h2>
+  <ul>
+    <li>Track #53781 (HiSparse decode buffering) — the first upstream work aimed squarely at the sparse-MLA depth cost.</li>
+    <li>Keep TP4×PP2 served (decode-best, validated) and re-validate accuracy after any patch adoption.</li>
+    <li>500 tok/s @512k remains depth-bound; no config lever moves it (three independent stacks confirmed).</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #7 — DeepSeek-V4.1-Flash CMP-170HX campaign. Local numbers server-reported; third-party numbers author-reported.</p>
+</main>
+</body>
+</html>

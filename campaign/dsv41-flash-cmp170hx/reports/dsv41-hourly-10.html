@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #10</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-good{background:rgba(38,204,134,.10);border-left-color:var(--green-400);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .best{background:rgba(38,204,134,.12)!important;font-weight:600;}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #10</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #10 — PP6 adopted, KV measured</p>
+  <h1 class="doc-title">PP6 is the PP winner; KV for 1M tokens measured</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 23:45Z → 2026-09-12 06:45Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Served</span><span class="doc-meta-val">PP6 (TP1×PP6, Schaka v0.13.0 kit), HEALTHY on :8090</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Headline</span><span class="doc-meta-val">PP6 c1 96.9–107.6 tok/s, validated to 1M; KV = 23.06 GiB (PP8) / 10.95 GiB (PP6) per 1M</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>PP6 vs PP8 (measured here)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Metric</th><th>PP6 (TP1×PP6)</th><th>PP8 (TP1×PP8)</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>Pure single-stream decode (8-tok)</td><td>96.9 tok/s</td><td>43.2</td></tr>
+      <tr><td>Single-stream @4k / 32k</td><td>103.8 / 49.4</td><td>32.2 / 27.6</td></tr>
+      <tr><td>Decode agg c8 (4k / 32k / 128k)</td><td>146 / 159 / 164</td><td>155 / 137 / 128</td></tr>
+      <tr><td>Prefill c1 128k / c16 128k</td><td>7,716 / 23,780</td><td>9,209 / 30,058</td></tr>
+      <tr><td><strong>KV for 1M tokens</strong></td><td><strong>10.95 GiB</strong></td><td>23.06 GiB</td></tr>
+      <tr><td>Correct</td><td>needle 9/9 + 1M 1/1, coding 5/5</td><td>needle 3/3</td></tr>
+    </tbody>
+  </table></div>
+  <div class="alert alert-good"><strong>PP6 adopted.</strong> Its c1 (96.9–107.6 tok/s with 93.8% DSpark acceptance) is within noise of TP8×PP1 (100.8) while being fully TP-free, and ~2.3× faster than PP8. PP8's per-token KV is 2× because its <code>pp_share</code> relay replicates the caches across ranks.</div>
+
+  <h2><span class="sec-num">2.</span>KV-cache answer (asked)</h2>
+  <ul>
+    <li><strong>PP8:</strong> pool 6,170,576 tok in 135.72 GiB → 23,617 B/tok → <strong>1M = 23.06 GiB</strong>.</li>
+    <li><strong>PP6:</strong> pool 2,888,012 tok in 30.16 GiB → 11,214 B/tok → <strong>1M = 10.95 GiB</strong>.</li>
+    <li>~13–26× the model card's 890 B/token because the sm_80 path uses <code>fp8_ds_mla</code> (FP4 KV rejected for MLA) plus the uncompressed indexer-K caches.</li>
+  </ul>
+
+  <h2><span class="sec-num">3.</span>Research delta</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Change</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td>Schaka/170hx-journey → <code>c1b0907b</code></td><td>04:52Z — <strong>kv-group relay now owns the source indexer-K cache</strong>; earlier "relay corrupts prompt" fixed (his 44k-token context check 5/10 wrong → 0/10)</td><td>PP6/PP8 relay correctness</td></tr>
+      <tr><td>vLLM <strong>#53781 merged</strong></td><td>HiSparse host-resident sparse-MLA decode KV tier landed</td><td><strong>directly on the depth/decode wall</strong></td></tr>
+      <tr><td>vLLM #53592/#56568/#56562/#54851/#55081</td><td>HiSparse DSv4 (8/N); pad shared experts for MegaMoE; fuse V4.1 input metadata; <strong>bake real KV caches under PIECEWISE (DSA silent garbage)</strong>; SupportsPP on MTP drafters</td><td>decode correctness/perf</td></tr>
+      <tr><td>zebgop-ops/dsv41flash-pp → <code>a507092e</code></td><td>PP4 sm80: DSpark V1 under PP4, REAP-272E layout, skip draft-token RPC on prefill chunks; prefill 1.4k→3.1k tok/s</td><td>sm80 PP4 (not PP6/8)</td></tr>
+      <tr><td>wtdcode/vllm-backport → <code>fdd92607</code></td><td>honor <code>requires_raw_input_tokens</code> on non-first PP ranks (vision sentinel <code>input_ids</code> was dropped for pp&gt;1)</td><td>PP correctness</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Discord:</strong> no new V4.1 activity; Schaka notes his earlier 6-card corruption was a <em>corrupt cache</em>, not hardware. No third party has a working CMP-170HX V4.1.</p>
+
+  <h2><span class="sec-num">4.</span>Next</h2>
+  <ul>
+    <li>Pull Schaka's newer relay fix (<code>c1b0907b</code>) into our PP6 overlay and re-validate — it targets a prompt-corruption path our needle tests may not hit.</li>
+    <li>Track vLLM #53781 (now merged) for a portable sparse-MLA decode improvement.</li>
+    <li>c1 headroom remains kernel-level; no config lever left.</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #10 — DeepSeek-V4.1-Flash CMP-170HX campaign. Local numbers measured; third-party numbers author-reported.</p>
+</main>
+</body>
+</html>

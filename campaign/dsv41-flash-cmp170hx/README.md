@@ -161,6 +161,52 @@ Notable measured facts:
   43–81 tok/s decode. Schaka's `dsv416pp` (TP1×PP6) reports 44.4 / 108.8 / 163.4
   tok/s at 1/4/8 streams and 5,078 tok/s prefill.
 
+### PP6 vs PP8 — measured 2026-09-12 (PP6 adopted)
+
+Both layouts were rebuilt and accuracy-gated. **PP6 (TP1×PP6, partition
+`7,7,7,7,7,5`, util 0.95)** is the one we serve; it uses Schaka's v0.13.0-based
+kit including the relay fix that lets the kv-group relay own the source
+indexer-K cache (`language_model.model.layers.20.attn.indexer.k_cache`).
+
+| metric | PP6 (TP1×PP6) | PP8 (TP1×PP8) |
+|---|---|---|
+| **pure single-stream decode** (8-tok prompt, best of 4–8) | **96.9–105 tok/s** | 43.2 |
+| single-stream @512 / 4k / 32k | 87.1 / 103.8 / 49.4 | 40.9 / 32.2 / 27.6 |
+| decode aggregate c8 (4k / 32k / 128k) | 146 / 159 / 164 | 155 / 137 / 128 |
+| decode aggregate c16 (512k) | 88.3 | 86.8 |
+| prefill c1 (4k / 128k / 512k) | 2,258 / 7,716 / 5,267 | 1,350 / 9,209 / 7,306 |
+| prefill c16 (4k / 128k / 512k) | 9,501 / 23,780 / 14,630 | 7,067 / 30,058 / 24,151 |
+| KV pool | 2,888,012 tok | 6,170,576 tok |
+| **KV bytes/token (whole model)** | **11,214 B** | 23,617 B |
+| **KV for 1M tokens** | **10.95 GiB** | 23.06 GiB |
+| correct | needle 9/9 + 1M 1/1 + multi-needle @44k 5/5, coding 5/5 | needle 3/3 |
+
+**Why PP6 wins c1:** it has 5 pipeline hops vs PP8's 7, so a single token crosses
+fewer serial stages. PP8's per-token KV is also ~2× because its `pp_share` relay
+replicates the compressed/indexer caches across ranks. PP6 c1 is within noise of
+the TP8×PP1 ceiling (100.8) while remaining Tensor-Parallel-free.
+
+**KV-cache benchmark (asked):** the engine reports a **2,888,012-token pool in
+30.16 GiB** for PP6 → **11,214 bytes/token → 1M tokens = 10.95 GiB**. The model
+card advertises ~890 B/token for its FP4 global KV; the sm_80 path is ~13× that
+because it runs `fp8_ds_mla` (FP4 KV is rejected for MLA backends) **and** keeps
+the uncompressed indexer-K caches for the eight indexer layers alongside the four
+compressed KV groups. On PP8 the same measurement gives 23.06 GiB/1M (135.72 GiB
+pool), the extra being the relay's cache replication.
+
+**Full context×concurrency sweep (PP6, decode aggregate tok/s):**
+
+| ctx | c1 | c2 | c4 | c8 | c16 |
+|---|---|---|---|---|---|
+| 4k | 49.2 | 91.1 | 108.9 | 146.4 | 141.5 |
+| 32k | 45.1 | 80.5 | 104.2 | 159.0 | 159.6 |
+| 128k | 42.6 | 65.9 | 100.4 | 164.5 | 150.0 |
+| 512k | 30.0 | 46.1 | 54.0 | 84.9 | 88.3 |
+| 1M | 15.9 | 22.4 | — | — | — |
+
+At 1M only c1/c2 fit (one 1M request ≈ one third of the pool). Prefill at 1M is
+TTFT 342.5 s (~3.1k tok/s).
+
 ## The 500 tok/s @ 512k target — not met, and why
 
 Best measured is **130 tok/s at 512k c64** (~26% of target). `aggregate ≈

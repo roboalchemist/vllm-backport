@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #4</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert good{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #4</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #4 — progress + research delta</p>
+  <h1 class="doc-title">Validated to 1M; chasing the all-reduce bottleneck</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 06:20Z → 10:45Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Service</span><span class="doc-meta-val">TP4×PP2, DSpark k=5, 1M ctx — HEALTHY on :8090</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Headline</span><span class="doc-meta-val">1M-context recall PASS; PP8 / TP2×PP4 arrangements crash; TP4×PP2 remains best</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>Progress this hour</h2>
+  <ul>
+    <li><strong>Full 1M context validated</strong>: needle at 50% depth in a 1,048,576-token prompt recalled exactly (wall 1113 s). Long-context set: 12/12 at 4k–512k, 1/1 at 1M.</li>
+    <li><strong>Accumulated multi-turn prefix</strong>: 8-turn chat (~13k tokens), fact from turn 1 recalled on turn 9; recall turn 1.4 s vs ~6 s fillers.</li>
+    <li><strong>Arrangement exploration</strong> driven by Schaka's link analysis (below).</li>
+  </ul>
+
+  <h2><span class="sec-num">2.</span>Why arrangements fail (and what it means)</h2>
+  <div class="alert alert-warn"><strong>Schaka's key claim:</strong> at TP4 every all-reduce crosses the Gen2 x4 link (~1.6 GB/s), which he computes caps prefill near <strong>1,700 tok/s</strong> — exactly what we measure (1.6–2.9k). A pipeline stage per card would remove the all-reduce and send only hidden states.</div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Layout</th><th>Partition</th><th>Outcome</th></tr></thead>
+    <tbody>
+      <tr><td>TP4×PP2</td><td>20,20</td><td>works — best (512k c64 129.6 tok/s)</td></tr>
+      <tr><td>TP2×PP3 (6 GPU)</td><td>14,14,12</td><td>works — slightly worse at 512k (107.6)</td></tr>
+      <tr><td>TP8×PP1</td><td>—</td><td>works</td></tr>
+      <tr><td>TP1×PP8</td><td>5,5,5,5,5,5,5,5</td><td><strong>crashes</strong>: "Workers disagree on supported KV cache layouts"</td></tr>
+      <tr><td>TP2×PP4</td><td>10,10,10,10</td><td><strong>crashes</strong>: relay/loader <code>'NoneType' object has no attribute 'prefix'</code></td></tr>
+    </tbody>
+  </table></div>
+  <p>The no-all-reduce layout is the right direction but the relay does not yet support arbitrary kv-group splits. Schaka's own PP8 profile is marked "carries no measured numbers yet" — it is untested upstream too.</p>
+
+  <h2><span class="sec-num">3.</span>Research delta (since 06:20Z)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Change</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td><strong>zebgop-ops/dsv41flash-pp</strong> (NEW)</td><td>DSV4.1 on 4× CMP 170HX, PP4; CPU experts, Marlin repack, Engram on NVMe</td><td>author-reported 16.7 tok/s decode / ~100 prefill — below ours</td></tr>
+      <tr><td>shi3z/deepseekv4.1-A100-custom</td><td>+9 commits: FP4 experts on tensor cores, EP decode one graph/GPU, uneven EP shards, batched decode + DSpark</td><td>author-reported 52 tok/s PP8, <strong>62 tok/s EP7</strong> (A100/sm80)</td></tr>
+      <tr><td>Schaka/170hx-journey</td><td>PP8 profile + reasoning-content alias fix + tool-call-in-thinking recovery</td><td>PP8 crashed here (layout); parser fix we already have</td></tr>
+      <tr><td>vllm #56214</td><td><strong>MERGED to main</strong> (09:11Z)</td><td>model support upstream</td></tr>
+      <tr><td>vllm #56367</td><td>closed unmerged (base branch deleted)</td><td>K-cache gather perf orphaned</td></tr>
+      <tr><td>vllm #56435–56441</td><td>perf/correctness resubmits (KV-only insertion, Engram overlap, PP relay)</td><td>future levers</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Discord (snapshot 09:50Z):</strong> Schaka now reports "6 cards and 8 cards" and <strong>"about 2 full 1M contexts so far without errors"</strong> (08:45–08:48Z); Zanooda claims "4400 t/s prefill with engrams on nvme" on a mostly-x4 rig (08:48Z) and is trying P2P. Still no third independent working CMP-170HX V4.1.</p>
+
+  <h2><span class="sec-num">4.</span>Next</h2>
+  <ul>
+    <li>Try shi3z's EP-decode single-graph idea and uneven EP shards on this box (A100/sm80, closest external match).</li>
+    <li>Revisit PP8 once the relay's kv-layout negotiation is patched (call it a concrete engine bug to fix).</li>
+    <li>Keep service HEALTHY + re-verify coherence after every restart (done each time).</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #4 — DeepSeek-V4.1-Flash CMP-170HX campaign. Local numbers are server-reported; third-party numbers are author-reported.</p>
+</main>
+</body>
+</html>

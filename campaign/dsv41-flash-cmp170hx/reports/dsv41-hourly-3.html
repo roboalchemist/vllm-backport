@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #3</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-good{background:rgba(38,204,134,.10);border-left-color:var(--green-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #3</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #3 — progress + research delta</p>
+  <h1 class="doc-title">Serving, validated, and benchmarked — now closing the 512k gap</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 00:30Z → 06:20Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Service</span><span class="doc-meta-val">HEALTHY on :8090 — <code>deepseek-v4.1-flash</code>, TP4×PP2, DSpark k=5, 1M ctx</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Headline</span><span class="doc-meta-val">First coherent CMP 170HX V4.1 serving; OpenCode validated in tmux; 512k decode 129.6 tok/s aggregate</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>Progress this hour</h2>
+  <ul>
+    <li><strong>Serving:</strong> Schaka-recipe engine up; validated coherent (Berlin/Paris/Canberra; planted fact <code>7391-MARLIN-42</code> exact); clean reasoning/tool parsers.</li>
+    <li><strong>OpenCode:</strong> headless proof PASSED inside tmux (read-tool marker exact), plus a first live-session benchmark (5 prompts).</li>
+    <li><strong>Benchmarks shared (#1–#5):</strong> baseline; c1–c16 sweep; arrangements (TP8×PP1 / TP4×PP2 / TP2×PP3); DSpark real-text (~41% acceptance); 512k depth/concurrency.</li>
+    <li><strong>CUDA graphs confirmed</strong> (PIECEWISE 15/15 + FULL 7/7).</li>
+    <li><strong>Key corrections:</strong> DSpark acceptance is ~41% on real text (not 4–8% on random); decode TPOT is flat with depth; aggregate saturates at ~130 tok/s @ 512k c64.</li>
+  </ul>
+
+  <h2><span class="sec-num">2.</span>Current numbers</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Metric</th><th>Value</th><th>Context</th></tr></thead>
+    <tbody>
+      <tr><td>c1 decode (real text)</td><td>43.1 tok/s</td><td>TP4×PP2, DSpark k=5</td></tr>
+      <tr><td>c8 decode (real text)</td><td>153.4 tok/s</td><td>shallow context</td></tr>
+      <tr><td>128k aggregate decode</td><td>214.8 tok/s</td><td>c32, prefix-cached</td></tr>
+      <tr><td>512k aggregate decode</td><td>129.6 tok/s</td><td>c64, prefix-cached (26% of goal)</td></tr>
+      <tr><td>Prefill</td><td>1.6–2.9k tok/s</td><td>up to 512k</td></tr>
+      <tr><td>DSpark acceptance</td><td>~41% (len ~2.0–2.2)</td><td>real text; rises at depth</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2><span class="sec-num">3.</span>Research delta (still no other CMP170HX V4.1)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Change</th><th>Relevance</th></tr></thead>
+    <tbody>
+      <tr><td>vllm #56214 (dsv41-feat)</td><td>head → <code>0bfb653d3</code>; +4 commits</td><td>"Separate V4/V4.1 indexer block sizes" — on our path</td></tr>
+      <tr><td>vllm #56367 (new)</td><td>VS V4.1 Triton K-cache gather vectorization</td><td>SM80/Triton fallback path — candidate optimization</td></tr>
+      <tr><td>vllm #56387 (new)</td><td>DSpark drafter EPLB uninitialized-state bugfix</td><td>spec-decode stability</td></tr>
+      <tr><td>artlair/vllm-backport</td><td><code>318eefe0b</code> — engram mmap warmup/drop</td><td>host-memory fit (189 GiB engram)</td></tr>
+      <tr><td>wtdcode/vllm-backport</td><td>master <code>24cb31bb8</code> — new V4.1 recipe (TP8 + EP + graphs)</td><td>author-reported, no numbers</td></tr>
+      <tr><td>HF bot-lab-21 EXL3 / dealignai FP8</td><td>GB10 / SGLang quality runs</td><td>not SM80; author-reported</td></tr>
+    </tbody>
+  </table></div>
+  <p><strong>Discord (dsum cmpunlocker, snapshot 06:16Z):</strong> still no other working CMP-170HX V4.1. <code>deejay9983</code> argues PP "won't run ds4.1" at x4 and wants <strong>x16 caps + DP3×TP2×EP6</strong> on 6 cards (2026-09-11T04:52–05:01Z); <code>gnasherrr</code>: "so many ppl on 8x 170hx how come no one posted anything about ds4.1" (05:14Z). Our own <code>roboalchemist.</code> noted the run is validating and benchmarking (05:00–05:02Z).</p>
+
+  <h2><span class="sec-num">4.</span>Next</h2>
+  <ul>
+    <li><strong>EP off</strong> experiment (all-to-all is the prime scaling suspect), then <strong>TP2×PP3 at 512k</strong>, higher <code>--max-num-seqs</code>, and the vLLM #56367 K-cache gather optimization.</li>
+    <li>Long-context viability (needle at depth) and coding-test validation on the working server.</li>
+    <li>Bifrost (vdevserve) + gateway@gateway registration.</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #3 — DeepSeek-V4.1-Flash CMP-170HX campaign. Supersedes Update #2. All model throughput figures are server-reported; all third-party figures are author-reported.</p>
+</main>
+</body>
+</html>

@@ -1,0 +1,12 @@
+# Live OpenCode benchmark prompts for DeepSeek-V4.1-Flash on CMP 170HX.
+# Format: name|prompt  (one per line; blank lines and # comments ignored)
+
+qa_factual|Answer in one short paragraph: what is the difference between a process and a thread, and when would you choose one over the other?
+
+qa_math|A train travels 120 km in 1.5 hours, then 90 km in 1 hour. What is its average speed over the whole trip? Show the calculation briefly.
+
+code_write|Write a Python function `merge_intervals(intervals)` that merges overlapping intervals given as a list of [start, end] pairs. Include a short docstring and handle the empty list. Output only the code.
+
+code_read|Use the read tool to open campaigns/2026-09-10-dsv41-flash-cmp170hx/scripts/bench_sweep.sh, then state in one sentence what the ARMS variable controls.
+
+code_debug|A Python function mean(xs) is defined as: def mean(xs): return sum(xs) / len(xs). Explain the single input that crashes it and give the one-line fix.

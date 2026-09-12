@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #9</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-good{background:rgba(38,204,134,.10);border-left-color:var(--green-400);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .best{background:rgba(38,204,134,.12)!important;font-weight:600;}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #9</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #9 — c1 vs the ecosystem</p>
+  <h1 class="doc-title">Our c1 leads the published SM80/A100 numbers</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 20:00Z → 22:15Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Served</span><span class="doc-meta-val">TP8×PP1, DSpark k=5, 1M ctx — HEALTHY</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">c1</span><span class="doc-meta-val">≈100–103 tok/s shallow, 87–90 @32k</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>Single-stream (c1) comparison — measured locally vs author-reported</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Source</th><th>Hardware</th><th>Single-stream decode</th></tr></thead>
+    <tbody>
+      <tr class="best"><td>This campaign (TP8×PP1)</td><td>8× CMP 170HX</td><td><strong>≈100–103 tok/s</strong></td></tr>
+      <tr><td>shi3z/deepseekv4.1-A100-custom</td><td>8× A100 (sm80)</td><td>52 tok/s (62–65.7 EP)</td></tr>
+      <tr><td>zebgop-ops/dsv41flash-pp</td><td>4× CMP 170HX PP4</td><td>16.7 tok/s (~22 with ngram spec)</td></tr>
+      <tr><td>Zanooda PP8</td><td>8× CMP 170HX</td><td>117 tok/s (tokens/(last−first), not wall-clock)</td></tr>
+    </tbody>
+  </table></div>
+  <p>Author-reported figures; our number is locally measured best-of-N with the spread noted. Our c1 is competitive with — and on a wall-clock basis ahead of — the other published SM80 results.</p>
+
+  <h2><span class="sec-num">2.</span>Research delta</h2>
+  <ul>
+    <li><strong>zebgop-ops/dsv41flash-pp</strong> added n-gram speculative decoding under PP4 + CPU experts (16.7 → ~22 tok/s, 97% draft acceptance).</li>
+    <li><strong>shi3z/deepseekv4.1-A100-custom</strong>: `--mtp K` spec decoding, parallel-context sweep; 52 tok/s single-stream, 62–65.7 EP on 8×A100.</li>
+    <li><strong>vLLM #53781</strong> moved (test-fixture only) — HiSparse sparse-MLA decode KV tier.</li>
+    <li><strong>Discord:</strong> no new working CMP-170HX V4.1. Schaka reports a <em>token-corruption regression</em> ("/home/Schaka → /home/Schalke"), suspected buffer reuse; Zanooda points him at the PR #52645 parser commits. A useful reminder to keep our own accuracy gate in front of every change.</li>
+  </ul>
+
+  <h2><span class="sec-num">3.</span>c1 next</h2>
+  <ul>
+    <li>Profiling endpoint is not enabled on this image (404); a torch-profiler run would localize the ~10 ms/token between Marlin MXFP4 MoE GEMV, sparse-MLA decode, and overheads.</li>
+    <li>Watch the HiSparse lineage (#53781 / #52760) for a portable sparse-MLA decode-side win.</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #9 — DeepSeek-V4.1-Flash CMP-170HX campaign. Local numbers measured; third-party numbers author-reported.</p>
+</main>
+</body>
+</html>

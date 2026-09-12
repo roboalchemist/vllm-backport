@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #8</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-good{background:rgba(38,204,134,.10);border-left-color:var(--green-400);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .best{background:rgba(38,204,134,.12)!important;font-weight:600;}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #8</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #8 — c1-first progress</p>
+  <h1 class="doc-title">c1 optimized: TP8×PP1, and where the remaining headroom is</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Priority</span><span class="doc-meta-val">c1 (single-stream) decode first</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Served config</span><span class="doc-meta-val">TP8×PP1, DSpark k=5, fp8_ds_mla, 1M ctx</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">c1 result</span><span class="doc-meta-val">98.1 tok/s @8-tok prompt, 88.4 @32k (was 89.4 / 54.1 at TP4×PP2)</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>c1 decode by arrangement</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>prompt tokens</th><th>TP4×PP2</th><th>TP8×PP1 (served)</th></tr></thead>
+    <tbody>
+      <tr><td>8</td><td>89.4</td><td class="best">98.1</td></tr>
+      <tr><td>512</td><td>84.2</td><td class="best">95.0</td></tr>
+      <tr><td>4,096</td><td>87.6</td><td class="best">92.6</td></tr>
+      <tr><td>32,768</td><td>54.1</td><td class="best">88.4</td></tr>
+    </tbody>
+  </table></div>
+  <p>TP8×PP1 removes the two serial pipeline hops per token that dominate single-stream latency at depth. Validated on TP8×PP1: coherence ✓, needle 32k/128k 4/4, coding 5/5.</p>
+
+  <h2><span class="sec-num">2.</span>Why c1 can't easily go higher (measured, not assumed)</h2>
+  <ul>
+    <li><strong>Not power-bound:</strong> under a c1 load the GPUs draw ~90–100 W of the 250 W limit at 1470 MHz (max 1695). The ceiling is 300 W but there is no thermal/power pressure to relieve — c1 is memory/latency-bound.</li>
+    <li><strong>DSpark works:</strong> c1 acceptance is <strong>93.6%</strong> (len 4.68) on predictable content and ~35–45% on open prose; it is what lifts c1 well above the no-spec rate.</li>
+    <li><strong>MoE backend:</strong> `moe_backend: triton` fails engine init on this MXFP4/SM80 path — Marlin is the only working MXFP4 MoE backend.</li>
+    <li><strong>Width is fixed:</strong> the 475 GB checkpoint cannot fit one TP4 single stage, so TP8 is the minimum single-stage width; TP4×PP1/TP2×PP1 are impossible.</li>
+    <li><strong>Draft count is fixed:</strong> the checkpoint's <code>dspark_block_size=5</code> pins DSpark k=5.</li>
+  </ul>
+  <div class="alert"><strong>Conclusion:</strong> c1 headroom past ~98 tok/s lives in the Marlin MXFP4 MoE GEMV and the sm_80 sparse-MLA decode kernel — kernel work, not configuration.</div>
+
+  <h2><span class="sec-num">3.</span>Tradeoff and next</h2>
+  <ul>
+    <li>TP8×PP1 costs 512k aggregate (c64 113 vs 130 at TP4×PP2). Both configs are kept one command apart.</li>
+    <li>Next c1 candidates: fused MoE GEMV for batch-1, or the upstream sparse-MLA decode work (HiSparse #53781 lineage).</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #8 — DeepSeek-V4.1-Flash CMP-170HX campaign. Server-reported tokens; GPU telemetry via nvidia-smi.</p>
+</main>
+</body>
+</html>

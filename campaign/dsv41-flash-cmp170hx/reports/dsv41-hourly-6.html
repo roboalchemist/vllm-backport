@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DSV4.1-Flash CMP170HX — Hourly Update #6</title>
+<style>
+  :root{--off-white:#F7F9FB;--blue-600:#007FAF;--blue-700:#115274;--blue-800:#15374C;--off-black:#030E16;--neutrals-10:#EFF3F7;--neutrals-25:#EAEFF3;--neutrals-50:#E6EAEE;--neutrals-400:#838E98;--neutrals-500:#73808C;--neutrals-600:#536573;--neutrals-700:#3F515F;--blue-10:#E1F5FC;--green-400:#26CC86;--yellow-400:#FFAB40;--red-500:#DE3243;}
+  *{box-sizing:border-box;} html,body{margin:0;background:var(--off-white);color:var(--off-black);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:15px;line-height:1.65;}
+  a{color:var(--blue-600);text-decoration:none;} a:hover{text-decoration:underline;}
+  .topbar{position:sticky;top:0;z-index:50;background:#fff;border-bottom:1px solid var(--neutrals-50);} .topbar-inner{padding:12px 32px;display:flex;justify-content:space-between;gap:16px;}
+  .topbar-doc-title{font-size:14px;font-weight:600;color:var(--blue-800);} .topbar-tag{font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--blue-600);background:var(--blue-10);padding:4px 10px;border-radius:999px;}
+  .page{background:#fff;max-width:1100px;margin:24px auto;padding:56px 64px;border:1px solid var(--neutrals-50);border-radius:6px;box-shadow:0 1px 3px rgba(3,14,22,.06),0 8px 30px rgba(3,14,22,.05);}
+  .doc-eyebrow{font-size:12px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--blue-600);margin:0 0 12px;}
+  .doc-title{font-size:30px;font-weight:600;line-height:1.2;color:var(--blue-800);margin:0 0 20px;}
+  .doc-meta{display:grid;gap:8px;padding:18px 22px;background:var(--off-white);border-left:3px solid var(--blue-600);border-radius:4px;margin:0 0 8px;}
+  .doc-meta-row{display:flex;gap:10px;font-size:13.5px;align-items:baseline;} .doc-meta-label{font-weight:600;color:var(--neutrals-600);min-width:150px;flex-shrink:0;}
+  h2{font-size:21px;font-weight:600;color:var(--blue-800);margin:42px 0 16px;} h2 .sec-num{color:var(--blue-600);font-weight:500;margin-right:8px;}
+  p{margin:0 0 14px;} strong{color:var(--blue-800);font-weight:600;} code{background:var(--neutrals-10);padding:1px 5px;border-radius:3px;font-size:12.5px;font-family:'SF Mono',Menlo,monospace;color:var(--blue-700);}
+  ul{margin:0 0 16px;padding-left:22px;} li{margin-bottom:6px;} li::marker{color:var(--blue-600);}
+  .alert{background:var(--blue-10);border-left:3px solid var(--blue-600);padding:14px 18px;border-radius:4px;font-size:13.5px;margin:16px 0 24px;color:var(--neutrals-700);} .alert-warn{background:rgba(255,171,64,.10);border-left-color:var(--yellow-400);} .alert strong{color:var(--blue-800);}
+  .table-wrap{overflow-x:auto;margin:20px 0 24px;border:1px solid var(--neutrals-50);border-radius:6px;}
+  table{border-collapse:collapse;width:100%;font-size:13px;}
+  thead th{background:var(--blue-800);color:#fff;text-align:left;font-weight:500;font-size:12.5px;padding:11px 14px;}
+  tbody td{padding:11px 14px;border-bottom:1px solid var(--neutrals-25);} tbody tr:nth-child(even){background:var(--off-white);} tbody td:first-child{font-weight:600;color:var(--blue-800);}
+  .best{background:rgba(38,204,134,.12)!important;font-weight:600;}
+  .footer-note{margin-top:48px;padding-top:20px;border-top:1px solid var(--neutrals-50);font-size:12px;color:var(--neutrals-400);font-style:italic;}
+  @media(max-width:860px){.page{padding:36px 22px;margin:12px;}.doc-title{font-size:23px;}thead th,tbody td{padding:8px 9px;}}
+</style>
+</head>
+<body>
+<header class="topbar"><div class="topbar-inner"><span class="topbar-doc-title">DSV4.1-Flash CMP170HX — Hourly Update #6</span><span class="topbar-tag">CMP 170HX Campaign</span></div></header>
+<main class="page">
+  <p class="doc-eyebrow">Hourly update #6 — progress + research delta</p>
+  <h1 class="doc-title">Second independent PP8 stack: correct, but not faster here</h1>
+  <div class="doc-meta">
+    <div class="doc-meta-row"><span class="doc-meta-label">Window</span><span class="doc-meta-val">2026-09-11 15:00Z → 17:30Z</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Service</span><span class="doc-meta-val">TP4×PP2 restored, HEALTHY on :8090 (coherence verified)</span></div>
+    <div class="doc-meta-row"><span class="doc-meta-label">Headline</span><span class="doc-meta-val">Evaluated Zanooda's PP8 stack end-to-end; not faster than TP4×PP2 on this box</span></div>
+  </div>
+
+  <h2><span class="sec-num">1.</span>Progress this hour</h2>
+  <ul>
+    <li><strong>Gateways:</strong> added `DeepSeek-V4.1-Flash (CMP 170HX)` to the gateway landing page (rebuild + push), fixing a pre-existing broken entry that was 500-ing the page. Both reachable gateways now done.</li>
+    <li><strong>NCCL:</strong> `Tree` (LL128/Simple) is invalid on this PEX topology — Ring/Simple only.</li>
+    <li><strong>New external stack:</strong> evaluated `zanooda/vllm-sm80-ds41f:v41-sm80` (vLLM PR #56201 + 13 patches, PP=8/TP1) end-to-end on our hardware.</li>
+  </ul>
+
+  <h2><span class="sec-num">2.</span>Zanooda PP8 vs our TP4×PP2 (512k decode, prefix-cached, ignore_eos, measured here)</h2>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Concurrency</th><th>TP4×PP2 (served)</th><th>Zanooda PP8</th><th>Schaka PP6</th></tr></thead>
+    <tbody>
+      <tr><td>c8</td><td class="best">103.3</td><td>77.6</td><td>—</td></tr>
+      <tr><td>c16</td><td class="best">111.7</td><td>82.8</td><td>23.2</td></tr>
+      <tr><td>c64</td><td class="best">129.6</td><td>92.0</td><td>74.9</td></tr>
+      <tr><td>prefill (approx)</td><td>~2.5k t/s</td><td>~2× (no all-reduce)</td><td>~2.5–3×</td></tr>
+      <tr><td>correctness</td><td>needle 12/12</td><td>needle 3/3</td><td>needle 3/3</td></tr>
+    </tbody>
+  </table></div>
+  <div class="alert alert-warn"><strong>Method matters:</strong> Zanooda reports 117 tok/s single-stream and 532 @8 streams. His single-stream figure is tokens/(last−first token) and his aggregate comes from <em>staggered</em> arrivals (overlapping in-flight batches). Measured wall-clock on our box, his harness gives 43–81 tok/s decode; his stack is correct but <strong>not faster than TP4×PP2</strong> for deep-context decode here.</div>
+
+  <h2><span class="sec-num">3.</span>Where the 500 tok/s @512k target stands</h2>
+  <ul>
+    <li>Three correct stacks measured (TP4×PP2, Schaka PP6, Zanooda PP8); the best 512k aggregate is <strong>TP4×PP2 at 129.6 tok/s</strong> — 26% of the target.</li>
+    <li>Prefill is a solved axis: removing the TP all-reduce gives 2–3× (5.6–7.2k tok/s).</li>
+    <li>Decode is the hard axis: PP layouts lose to TP4×PP2 despite the prefill win, and the TP-split relay (TP2×PP4/PP6) is still numerically wrong in both external kits.</li>
+    <li>Remaining levers: port Zanooda's candidate-only indexer / breakable-graph / engram-cpu wins onto a TP layout, or a correct TP-split relay. Both are kernel/relay work beyond a config change.</li>
+  </ul>
+
+  <h2><span class="sec-num">4.</span>Research delta</h2>
+  <ul>
+    <li><code>Zanooda/deepseek-v4.1-flash-cmp170hx</code> published (8×CMP170HX PP8, image + 13 patch series); <code>satspace-cpu/cmp170hx-linux-p2p</code> documents working BAR1 P2P (5.3 GB/s one-way, 1.69 µs).</li>
+    <li>Schaka reverted 3 parser/sampler experiments ("unusable"); thinking-parsing still his open problem.</li>
+    <li>vLLM #56439 (PP relay) marked ready-for-review; #56438 PP-SP boundaries; #56435–56441 perf resubmits; #56120 SM80 still open.</li>
+    <li>Discord: no new independent working CMP-170HX V4.1; one 6-card "55+ code / 40+ reasoning tok/s" claim that reads as a description of Schaka's rig.</li>
+  </ul>
+
+  <p class="footer-note">Hourly update #6 — DeepSeek-V4.1-Flash CMP-170HX campaign. Local numbers server-reported; third-party numbers author-reported.</p>
+</main>
+</body>
+</html>

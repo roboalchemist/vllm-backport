@@ -23,7 +23,7 @@ D() { sudo -n docker --host "$ISO" "$@"; }
 CACHE=/mnt/kv/cache/dsv41; mkdir -p "$CACHE"/{vllm,flashinfer,triton,nv,humming,cupy,tilelang}
 D rm -f "$NAME" >/dev/null 2>&1 || true
 
-ENVF=(-e OMP_NUM_THREADS=1 -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True -e NCCL_ALGO=${NCCL_ALGO:-Ring} -e NCCL_PROTO=${NCCL_PROTO:-Simple})
+ENVF=(-e OMP_NUM_THREADS=1 -e PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True -e NCCL_ALGO=${NCCL_ALGO:-Ring} -e NCCL_PROTO=${NCCL_PROTO:-Simple} ${NCCL_P2P_LEVEL:+-e NCCL_P2P_LEVEL=$NCCL_P2P_LEVEL})
 [ -n "$PART" ] && ENVF+=(-e "VLLM_PP_LAYER_PARTITION=$PART")
 
 D run -d --name "$NAME" --init --restart no --runtime nvidia \
