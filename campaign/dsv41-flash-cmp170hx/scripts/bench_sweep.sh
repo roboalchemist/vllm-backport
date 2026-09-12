@@ -22,6 +22,7 @@ for arm in $ARMS; do
   echo "=================== $tag ==================="
   D bash -lc "vllm bench serve --model deepseek-v4.1-flash --tokenizer $MODEL_DIR \
     --base-url $BASE_URL --dataset-name random \
+    --seed $((RANDOM+1)) \
     --random-input-len $IN --random-output-len $OUTL \
     --num-prompts $N --max-concurrency $C --disable-tqdm" \
     2>&1 | tee "$OUT/bench-$tag.txt" | \

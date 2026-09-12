@@ -1012,3 +1012,49 @@ reuse, not for the c1 headline.
 Note: the absolute c1 here (65 tok/s on an unpredictable 512-token task with
 thinking off) is below the earlier "9x-105 tok/s" best-of-N figure — that number
 was content where DSpark acceptance was high; acceptance is content-dependent.
+
+## KV capacity vs the 500 tok/s @512k target — capacity + step-cost bound (2026-09-12)
+
+**KV for 1M tokens (server-reported).** `GPU KV cache size` is the whole-model
+logical token pool = min over PP ranks. At `--gpu-memory-utilization`:
+
+| util | available KV/rank | pool (tokens) | max concurrency @1M | 512k prefill |
+|---|---|---|---|---|
+| 0.95 | 4.67 GiB | 2,888,012 | 2.75x | OK |
+| 0.96 | 5.31 GiB | 3,404,072 | 3.25x | OK |
+| 0.985 | 6.89 GiB | 4,694,119 | 4.48x | **OOM** |
+
+At 0.985 the +63% KV ate the workspace headroom for the 1M-context path and a
+512k prefill crashed in `fused_deepseek_v4_qnorm_rope_kv_rope_quant_insert`
+with `RuntimeError: torch_call_dispatcher("aten::new_empty", ...)` (OOM). So
+0.96 is the safe ceiling; 0.985 is not usable for long context. **1M-token KV is
+therefore ~30 GiB total (per-rank KV 3.5-7.4 GiB), ~11,214 B/token -- ~12.6x the
+model card's nominal 890 B/token**, because the port stores fp8 (not FP4) main
+KV plus the uncompressed indexer/compressor caches. An FP4 KV path exists in the
+code (`nvfp4_ds_mla`) but only on the Hopper/Blackwell FlashMLA-sparse backend,
+not the SM80 `TRITON_MLA_SPARSE_DSV41` Triton backend, so it is unavailable here.
+
+**Decode at 512k depth (shared 487k prefix, pure decode, `bench_depth_cached.py`,
+util 0.96):**
+
+| conc | aggregate out tok/s | TPOT ms | DSpark accept |
+|---|---|---|---|
+| 1 | 25.1 | 40.0 | 53.0% |
+| 2 | 38.1 | 26.3 | 58.8% |
+| 4 | 44.1 | 22.7 | 45.8% |
+| 8 | 52.3 | 19.1 | 32.0% |
+| 9 | 54.2 | 18.4 | 43.7% |
+| 12 | 54.6 | 18.3 | 27.9% |
+
+**Aggregate decode at 512k saturates at ~55 tok/s** — from c8 on, adding
+concurrency barely moves throughput because the per-step cost grows ~linearly
+with batch at depth (12 sequences cost ~5.5x one sequence per step, only ~2.2x
+batching efficiency). So the **500 tok/s @512k target is ~9x away and blocked by
+two things: (1) depth-dependent decode step cost scaling with concurrency, and
+(2) KV capacity capping true multi-request concurrency at full 512k.** Neither
+is a configuration lever; both need kernel/engine work (batched sparse-attention
+decode + a 4-bit KV path for SM80). This is the honest current ceiling.
+
+Folded in: served default moved to `UTIL=0.96` (pool 2.89M -> 3.40M, +18%, 512k
+prefill verified). Sweep tooling fixed to use a unique RNG seed per arm so
+prefix-cache hits cannot contaminate cold measurements.
