@@ -7,6 +7,33 @@ possible, validate in OpenCode (tmux), and register on the bifrost gateway
 
 All evidence classes follow `AGENTS.md`.
 
+## 0. 32K master table (the standard test + steering instrument)
+
+One command: `scripts/master_table.py` (grid -> per-cell `vllm bench serve` ->
+JSON in `/mnt/kv/logs/dsv41/master-table/` -> markdown table). Protocol: real
+English text via the `custom` dataset (this model has no chat template, so
+`--skip-chat-template`), 16 prompts, 256 output tokens, `ignore_eos`, unique
+seed per cell. `Gen tok/s` is the headline; Accept%/len from server metrics.
+
+**Baseline: PP8, HB32, util 0.96, SEQS 32 (2026-09-12).** Config
+`TP1xPP8 5x5x5x5x5x5x5x5`, `fp8_ds_mla`, KV capacity 9,332,296 tokens,
+`VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE=32`.
+
+| conc | Gen tok/s | total tok/s | TTFT mean/med/p99 ms | TPOT med/p99 ms | ITL p99 ms | Accept %/len | peak conc | fail |
+|---|---|---|---|---|---|---|---|---|
+| c1 | **21.0** | 2,870 | 5,394/5,283/5,969 | 27.4/34.8 | 83.5 | 23.9%/2.19 | 2 | 0 |
+| c4 | **47.6** | 6,635 | 4,107/3,679/10,244 | 67.2/96.3 | 2,007 | 20.3%/2.01 | 5 | 0 |
+| c8 | **101.5** | 13,972 | 1,951/1,647/6,313 | 66.0/91.8 | 1,778 | 21.1%/2.06 | 10 | 0 |
+
+c8/c1 scaling ratio: **4.84x**. Reading: accepts are meaningful (~21-24% on real
+text); c1 is TTFT-heavy at 32K (prefill ~5 s) with TPOT 27 ms; at c4/c8 the
+**ITL p99 blows up to ~2 s** while medians stay ~100 ms — a decode-tail signal
+pointing at chunked-prefill/scheduling interleaving, not raw decode speed. That
+is the first loop target.
+
+Harness note: the container needs `pandas` for the `custom` dataset
+(`vllm[bench]` extra); installed ad hoc, to be baked into the next image.
+
 ## 1. Model facts (HF rev `df42c109f1defefcbfcedbe7d905718a12266e40`)
 
 - `DeepseekV41ForCausalLM`, `model_type=deepseek_v41`. 40 backbone layers
@@ -1256,6 +1283,32 @@ first repeat is the initial PP8 store/flush, not a correctness issue.
 fix_bugs 22.4/9.8, add_feature 37.3/29.8, docstring 27.4/7.4 tok/s -> **median
 ~24.8 tok/s end-to-end**, vs **~30 tok/s on PP6**. So PP6 remains the c1 layout;
 PP8 trades ~17% per-stream real-usage speed for 2.75x KV capacity / concurrency.
+
+### Deeper kernel audit: split-K, Marlin MoE, dead knobs (2026-09-12)
+
+Sparse-MLA split-K decode (`rocm_aiter_mla_sparse.py`): on CUDA
+`_use_split_k_decode()` is True; at V4.1 TP1 c1/512k with `block_h=32`,
+`heads_blocks=2`, `base=2`, `cu=70`, and `_decode_num_splits` (search 1..16,
+cost `waves*(1/s+0.04)`) picks the **hard cap s=16** -> grid `(1,16,2)` = 32
+partial CTAs. It is cap-determined, not SM-optimal, and **already optimal**
+(larger s re-collapses via snap-down). `VLLM_DSV4_FIXED_DECODE_SPLITS` is dead
+code (no reader).
+
+Marlin MXFP4 MoE at batch 1: `block_size_m=8`, `thread_m_blocks=1`, capped at 4
+CTAs/SM, persistent `sms*blocks_per_sm` grid with a bounded DP + two-tile SK
+K-split — not one CTA per expert. `VLLM_MARLIN_USE_ATOMIC_ADD` is **hardcoded
+False for MoE** (`marlin_moe.py:152,216`) — which is why our earlier atomic-add
+test was neutral. `VLLM_MARLIN_INPUT_DTYPE` is the only live Marlin env.
+
+Tried `num_warps=8` on the split-K partial launch (top-ranked c1 experiment):
+c1 55.2 vs 54.3 (+1.7%) but it **OOMs on the 512k prefill** at util 0.96 — 
+rejected. Net kernel-knob outcome: only `VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE=32`
+is folded in (+2-4%, bit-identical); split-K, block_k, and the Marlin auto-config
+are already at their measured optimum.
+
+New SM80 lead to evaluate: `HalfVulpes/GLM-5.3-Kernels` v0.2.0 — a 528-byte INT8
+MLA latent plus a fused sparse-MLA split-KV decode measured on a 70-SM
+CMP170HX-derived box (GLM-5.3, not V4.1; portability to be checked).
 
 ### MoE backend A/B: Humming vs Marlin (2026-09-12)
 
