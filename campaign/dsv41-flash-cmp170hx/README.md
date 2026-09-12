@@ -122,6 +122,45 @@ Gen2 x4 fabric as 4-way. This is the real cost of the c1-optimal layout.
 
 (These are TP4×PP2 arms; PP layouts lose aggregate at depth.)
 
+### PP8 / pipeline-parallel layouts
+
+"PP8" means **TP1×PP8** — one pipeline stage per card, so there is no
+all-reduce at all (`VLLM_PP_LAYER_PARTITION=5,5,5,5,5,5,5,5`). It is the layout
+Schaka and Zanooda both run. Two things must be true for it to work: the KV
+layout lists of every rank must be intersected (they legitimately differ under
+PP), and the pipeline hop must relay the compressed KV, the indexer-K cache and
+the candidate blocks / top-k indices. This repo's `overlay/` carries the first
+fix; the relay is upstream work.
+
+Measured on this hardware:
+
+| layout | 512k decode c8 | c16 | c64 | correct? |
+|---|---|---|---|---|
+| **Zanooda PP8** (TP1×PP8, his 13-patch stack) | 77.6 | 82.8 | 92.0 | ✅ needle 3/3 |
+| Schaka PP6 (TP1×PP6) | — | 23.2 | 74.9 | ✅ needle 3/3 |
+| Schaka PP8 (TP1×PP8, this repo's kit + the KV fix) | — | — | — | ❌ needle 0/3 |
+
+Notable measured facts:
+
+- **The no-all-reduce layout prefills ~2×.** Zanooda's PP8 and Schaka's PP6 both
+  roughly double prefill versus TP4×PP2, matching the link analysis: at TP4 each
+  layer moves ~16 MB per 2,048-token chunk over a ~1.6 GB/s Gen2 x4 link, which
+  caps prefill near 1,700 tok/s. A pipeline stage per card removes that traffic.
+- **But deep-context decode is lower than TP4×PP2** (92 vs 130 tok/s at c64):
+  more pipeline hops and no tensor split of the KV.
+- **Schaka's PP8 relay is not yet correct here.** With the KV-layout
+  intersection fix it boots, but it fails the accuracy gate (needle 0/3, coding
+  1/5 with garbled identifiers) — the relay does not reproduce the indexer-K
+  write on every stage. Rejected. (His own PP8 profile is marked "no measured
+  numbers yet".)
+- **Author-reported PP8 numbers are higher than what we measure wall-clock.**
+  Zanooda reports 117 tok/s single-stream, 532 tok/s aggregate @8 streams
+  (105k), 6,066 tok/s prefill, 6.17M-token KV pool. His single-stream figure is
+  tokens/(last−first token) and the aggregate comes from *staggered* arrivals
+  (overlapping in-flight micro-batches); measured wall-clock on this box gives
+  43–81 tok/s decode. Schaka's `dsv416pp` (TP1×PP6) reports 44.4 / 108.8 / 163.4
+  tok/s at 1/4/8 streams and 5,078 tok/s prefill.
+
 ## The 500 tok/s @ 512k target — not met, and why
 
 Best measured is **130 tok/s at 512k c64** (~26% of target). `aggregate ≈
