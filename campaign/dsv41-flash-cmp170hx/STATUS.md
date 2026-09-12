@@ -986,3 +986,29 @@ retrieval workload. Remaining LMCache work (not yet done): sustained multi-turn
 prefix accumulation, mixed concurrent hit/miss semantic equality, eviction/
 reload, and the L2 (disk) tier; and re-measuring the real-OpenCode c1 bench with
 LMCache attached to quantify the end-to-end prefix-reuse gain.
+
+### LMCache does not help c1 — plain PP6 stays the c1 default (2026-09-12)
+
+Two A/B measurements on identical work:
+
+| arm | real-OpenCode c1 (median out tok/s) | 512-tok gen (median, incl TTFT) |
+|---|---|---|
+| plain PP6 (no LMCache), prefix caching on | ~30 | **65.1** |
+| PP6 + LMCacheMPConnector | ~26.5 | **58.0** |
+
+* Real-OpenCode bench: plain {37.4, 40.1, 35.3 / 14.6, 26.4, 8.2} median ~30 vs
+  LMCache {21.7, 46.4, 35.4 / 17.3, 28.9, 9.1} median ~26.5. No gain.
+* 512-token generation (thinking off, temperature 0), same prompt: plain
+  65.1 (runs 65.1/69.7/65.1) vs LMCache 58.0 (58.6/57.6/58.0) -> the LMCache
+  connector path costs ~11% c1 decode.
+
+Why: vLLM's own in-GPU prefix caching already serves single-task prefix reuse;
+LMCache only adds value across restarts / evicted prefixes / cross-task reuse,
+where it is correct (validated above) but not free. Decision: **plain PP6 is the
+c1 served default**; LMCache is a validated optional arm (`RETENTION=256` +
+`LMCacheMPConnector` + the MP server), kept for multi-turn/production prefix
+reuse, not for the c1 headline.
+
+Note: the absolute c1 here (65 tok/s on an unpredictable 512-token task with
+thinking off) is below the earlier "9x-105 tok/s" best-of-N figure — that number
+was content where DSpark acceptance was high; acceptance is content-dependent.
