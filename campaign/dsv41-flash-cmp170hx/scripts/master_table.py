@@ -49,11 +49,17 @@ METRICS = {
 }
 
 
-def bench_cell(a, conc):
-    """Run one vllm bench serve cell; return parsed metrics dict."""
+def bench_cell(a, conc, rep=0):
+    """Run one vllm bench serve cell; return parsed metrics dict.
+
+    The seed is fixed by (base, conc, rep) so that every config is measured on
+    the same prompt sets (comparable A/B) while each rep uses a *different*
+    prompt set (no prefix-cache carry-over -> cold measurement).
+    """
+    seed = a.seed + conc + rep * 7919
     cmd = (
         f"vllm bench serve --model {a.model} --tokenizer {a.tokenizer} "
-        f"--base-url {a.base_url} --dataset-name {a.dataset} --seed {int(time.time()) + conc} "
+        f"--base-url {a.base_url} --dataset-name {a.dataset} --seed {seed} "
         + (f"--dataset-path {a.dataset_path} " if a.dataset_path else "")
         + (f"--custom-output-len {a.output_len} " if a.dataset == "custom" else "")
         + "--ignore-eos --skip-chat-template "
@@ -87,14 +93,17 @@ def render(a, rows, best):
     lines.append(f"- grid: input {a.input_len} x c{a.conc}, {a.num_prompts} prompts, "
                  f"{a.output_len} output tokens, ignore_eos, dataset `{a.dataset}`")
     lines.append("")
-    lines.append("| conc | Gen tok/s | total tok/s | TTFT mean/med/p99 ms | "
+    lines.append("| conc | Gen tok/s (med [min-max]) | total tok/s | TTFT mean/med/p99 ms | "
                  "TPOT med/p99 ms | ITL p99 ms | Accept %/len | peak conc | fail |")
     lines.append("|---|---|---|---|---|---|---|---|---|")
     for r in rows:
+        spread = ""
+        if "gen_tok_s_min" in r:
+            spread = " [{:.1f}-{:.1f}]".format(r["gen_tok_s_min"], r["gen_tok_s_max"])
         lines.append(
-            "| c{} | **{:.1f}** | {:.0f} | {:.0f}/{:.0f}/{:.0f} | {:.1f}/{:.1f} | "
+            "| c{} | **{:.1f}**{} | {:.0f} | {:.0f}/{:.0f}/{:.0f} | {:.1f}/{:.1f} | "
             "{:.1f} | {:.1f}/{:.2f} | {:.0f} | {} |".format(
-                r["conc"], r.get("gen_tok_s", 0), r.get("total_tok_s", 0),
+                r["conc"], r.get("gen_tok_s", 0), spread, r.get("total_tok_s", 0),
                 r.get("ttft_mean", 0), r.get("ttft_med", 0), r.get("ttft_p99", 0),
                 r.get("tpot_med", 0), r.get("tpot_p99", 0), r.get("itl_p99", 0),
                 r.get("accept_pct", 0), r.get("accept_len", 0),
@@ -127,6 +136,12 @@ def main():
     ap.add_argument("--input-len", type=int, default=32768)
     ap.add_argument("--output-len", type=int, default=256)
     ap.add_argument("--num-prompts", type=int, default=16)
+    ap.add_argument("--seed", type=int, default=1234,
+                    help="fixed seed so cells are comparable across configs")
+    ap.add_argument("--reps", type=int, default=1,
+                    help="repeat each cell; Gen tok/s reported as median over reps")
+    ap.add_argument("--warmup", type=int, default=1,
+                    help="discarded warmup runs per cell before measuring")
     ap.add_argument("--conc", type=int, nargs="+", default=[1, 4, 8])
     ap.add_argument("--timeout", type=int, default=3600)
     a = ap.parse_args()
@@ -138,10 +153,27 @@ def main():
         "output_len": a.output_len, "num_prompts": a.num_prompts, "rows": [],
     }
     for c in a.conc:
-        print(f"== {a.label} 32K c{c} ==", flush=True)
-        row, out = bench_cell(a, c)
-        rec["rows"].append(row)
-        print(json.dumps(row), flush=True)
+        for w in range(a.warmup):
+            print(f"== {a.label} 32K c{c} warmup{w} (discarded) ==", flush=True)
+            bench_cell(a, c, 1000 + w)
+        reps = []
+        for r in range(a.reps):
+            print(f"== {a.label} 32K c{c} rep{r} ==", flush=True)
+            row, out = bench_cell(a, c, r)
+            reps.append(row)
+            print(json.dumps(row), flush=True)
+        agg = {"conc": c, "reps": a.reps}
+        keys = [k for k in reps[0] if k not in ("conc", "reps", "wall_s", "fail")]
+        for k in keys:
+            vals = sorted(x[k] for x in reps if isinstance(x.get(k), (int, float)))
+            if vals:
+                agg[k] = vals[len(vals) // 2]
+                agg[k + "_min"] = vals[0]
+                agg[k + "_max"] = vals[-1]
+        agg["fail"] = max(x["fail"] for x in reps)
+        agg["raw"] = [{k: x.get(k) for k in ("gen_tok_s", "ttft_med", "tpot_med", "itl_p99")}
+                      for x in reps]
+        rec["rows"].append(agg)
 
     os.makedirs(DB, exist_ok=True)
     path = os.path.join(DB, f"{ts}-{a.label}.json")

@@ -75,6 +75,32 @@ decode 91.7 tok/s** (accept 36.6%), and live opencode c1 median **35.9 tok/s**
 (fix_bugs 21.5 / add_feature 45.0 / docstring 35.9). vllm-loop #44
 (https://vllmloop.roboalch.com/r/44).
 
+## Loop infrastructure hardening: the trustworthy instrument (2026-09-12)
+
+The 16-prompt table was noise-limited (c8 101.5 vs 78.9 for an insignificant
+change) and the earlier c1 rows were biased low. Hardened the harness:
+- **32 prompts**, **1 discarded warmup** per cell, **2 reps**;
+- **per-(config,conc,rep) fixed seeds**: the seed *base* is constant so every
+  config is measured on the same prompt sets (comparable A/B), while each rep
+  uses a *different* prompt set (no prefix-cache carry-over -> cold).
+- Gen tok/s reported as the median of reps with the min-max spread.
+
+**Hardened baseline (PP8, util 0.94, HB32):**
+
+| conc | Gen tok/s (med [min-max]) | total tok/s | TPOT med/p99 ms | ITL p99 ms | Accept %/len | fail |
+|---|---|---|---|---|---|---|
+| c1 | **32.5** [31.2-32.5] | 4,478 | 30.1/39.9 | 91.8 | 22.2%/2.11 | 0 |
+| c4 | **73.9** [69.0-73.9] | 10,293 | 54.3/69.8 | 536.6 | 22.7%/2.13 | 0 |
+| c8 | **110.8** [94.0-110.8] | 15,257 | 70.6/110.2 | 593.9 | 22.3%/2.11 | 0 |
+
+- c8/c1 scaling ratio: **3.41x**. c4/c8 spreads are tight; c1 is 31-32.
+- The earlier low c1 rows (20.6) were a small-sample/content artifact; the true
+  c1 proxy at 32K is ~32 Gen tok/s.
+- **Caveat:** the bench's TTFT column is inconsistent with its own aggregate
+  throughput at 32K (reports ~640 ms where prefill + total tok/s imply ~7 s), so
+  TTFT is not yet a trustworthy column; Gen tok/s and total tok/s are. Prefill
+  throughput is instead read from total tok/s for now.
+
 ## 1. Model facts (HF rev `df42c109f1defefcbfcedbe7d905718a12266e40`)
 
 - `DeepseekV41ForCausalLM`, `model_type=deepseek_v41`. 40 backbone layers
