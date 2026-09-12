@@ -1106,6 +1106,26 @@ kernel-research problem (batched deep-context sparse-attention decode on SM80 +
 a 4-bit KV path the SM80 backends do not have), not a configuration one. Every
 configuration/capacity lever available has been measured and folded in.
 
+### MoE backend A/B: Humming vs Marlin (2026-09-12)
+
+`moe_backend=humming` is a valid explicit choice for this model's MXFP4 experts
+(`map_mxfp4_backend("humming") -> Mxfp4MoeBackend.HUMMING`,
+`HummingIndexedExperts`), and it initializes cleanly on SM80 (unlike `triton`,
+which fails for MXFP4 here). `auto` selects **MARLIN** (`MarlinExperts`).
+
+Same work, A/B:
+
+| arm | c1 512-tok gen | 512k c1 | 512k c8 | KV pool |
+|---|---|---|---|---|
+| MARLIN (auto, default) | 65.1 tok/s | 25.1 | 52.3 | 3,404,072 |
+| HUMMING (indexed) | 67.2 tok/s | 23.7 | 50.9 | 3,270,550 |
+
+**Humming is neutral-to-slightly-worse** (c1 +3% within noise; 512k c1/c8 -6%/-3%);
+coherence fine. Conclusion: the MXFP4 MoE kernel is **not** the c1 bottleneck, and
+Marlin remains the default. This closes the "batch-1 MoE GEMV backend" lever —
+the residual c1 cost is in the attention/indexer path, whose SM80 kernel is
+already occupancy-aware.
+
 ### Prefill current-state sweep, util 0.96 (2026-09-12)
 
 `vllm bench serve`, random unique prompt per arm, c1, out 128, server-counted:
