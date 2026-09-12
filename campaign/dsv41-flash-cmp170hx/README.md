@@ -61,7 +61,57 @@ EP=1 SEQS=32 bash scripts/serve_arrangement.sh 8 1 0,1,2,3,4,5,7,8 "" dsv41-scha
 
 ## Performance (server-reported, `ignore_eos`, prefix-cached)
 
-Aggregate decode (tok/s):
+Two layouts are used. **TP8×PP1** wins single-stream latency; **TP4×PP2** wins
+prefill and higher concurrency. All numbers below are server-reported; decode
+arms share a cached prefix and use `ignore_eos`, so tokens are exact.
+
+### c1 / c2 / c4 decode (aggregate output tok/s)
+
+The c-numbers are concurrent 256-token generations behind a shared,
+prefix-cached context; `per-stream` is aggregate ÷ concurrency.
+
+**TP8×PP1** (c1-optimal)
+
+| context | c1 | c2 | c4 |
+|---|---|---|---|
+| 4k | 46.9 | 83.6 | 107.3 |
+| 128k | 36.6 | 66.9 | 88.1 |
+
+**TP4×PP2** (aggregate/prefill-optimal)
+
+| context | c1 | c2 | c4 |
+|---|---|---|---|
+| 4k | 44.2 | 77.5 | **124.9** |
+| 128k | 35.6 | 61.6 | **92.6** |
+
+Single-stream pure decode (short prompt, no meaningful prefill):
+**~101 tok/s** on TP8×PP1 (`100.8 / 97.6 / 89.9` at 8 / 4k / 32k tokens of
+prompt) versus **~89 tok/s** on TP4×PP2 (`89.4 / 87.6 / 54.1`). TP8×PP1 is much
+better at depth because it has zero pipeline hops.
+
+### Prefill (TTFT and prefill tok/s)
+
+Random prompts, 8 output tokens.
+
+**TP8×PP1**
+
+| input | c1 | c2 | c4 |
+|---|---|---|---|
+| 4k | 5.87 s · 697 t/s | 5.13 s · 798 t/s | 7.25 s · 565 t/s |
+| 128k | 184.6 s · 710 t/s | 140.0 s · 937 t/s | 231.4 s · 566 t/s |
+
+**TP4×PP2**
+
+| input | c1 | c2 | c4 |
+|---|---|---|---|
+| 4k | 3.37 s · 1,215 t/s | 2.61 s · 1,570 t/s | 4.64 s · 883 t/s |
+| 128k | 86.6 s · 1,513 t/s | 66.2 s · 1,981 t/s | 108.7 s · 1,205 t/s |
+
+**TP4×PP2 prefills ~2× faster than TP8×PP1** — prefill is link-bound by the
+all-reduce, and 8-way tensor parallelism moves twice the traffic over the same
+Gen2 x4 fabric as 4-way. This is the real cost of the c1-optimal layout.
+
+### Aggregate decode at higher concurrency
 
 | context | c8 | c16 | c32 | c64 |
 |---|---|---|---|---|
@@ -70,9 +120,7 @@ Aggregate decode (tok/s):
 | 128k | 140 | 180 | 214 | 225 |
 | 512k | — | 112 | — | **130** |
 
-Single-stream (c1): **~105 tok/s** shallow; **100.8 / 97.6 / 89.9** at
-8 / 4k / 32k tokens of prompt on TP8×PP1. Prefill 1.6–2.9k tok/s (TP4xPP2);
-2–3× higher on PP layouts (no all-reduce).
+(These are TP4×PP2 arms; PP layouts lose aggregate at depth.)
 
 ## The 500 tok/s @ 512k target — not met, and why
 
