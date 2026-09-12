@@ -1058,3 +1058,41 @@ decode + a 4-bit KV path for SM80). This is the honest current ceiling.
 Folded in: served default moved to `UTIL=0.96` (pool 2.89M -> 3.40M, +18%, 512k
 prefill verified). Sweep tooling fixed to use a unique RNG seed per arm so
 prefix-cache hits cannot contaminate cold measurements.
+
+### Kernel/compression lever audit (2026-09-12)
+
+Checked every plausible way to raise long-context decode throughput or cut KV on
+SM80; each is either already applied or hardware-blocked:
+
+- **Decode attention kernel is already occupancy-aware.** The SM80 sparse-MLA
+  Triton kernel (`v1/attention/ops/triton_mla_sparse_kernel.py`) imports
+  `num_compute_units()` and has a split-occupancy autotune (`_SPLIT_MAX_OCCUPANCY
+  = 4`, BLOCK_N 16/32, num_warps sweep). No inherited fixed grid to fix.
+- **Indexer decode query-sharding is unavailable at TP1.** It is gated on
+  `VLLM_INDEXER_QUERY_SHARD` *and* `tp_size > 1` (`indexer.py:918`,
+  `indexer_shard_is_eligible`), so our TP1×PP6 layout logs "INACTIVE" by design.
+  The objective forbids TP>1, so this lever is out of scope.
+- **FP4 main KV (`nvfp4_ds_mla`) is Hopper/Blackwell only.** It is wired into the
+  FlashMLA-sparse backend, not the SM80 `TRITON_MLA_SPARSE_DSV41` Triton backend.
+- **FP4 indexer KV (`indexer_kv_dtype=mxfp4`) is Blackwell-only by construction.**
+  `dsa_indexer_uses_fp4` (`indexer.py:64`) raises on anything before sm_10x:
+  "requires Blackwell datacenter GPUs (sm_10x, e.g. B200/GB200); sm_120 and
+  earlier architectures are not supported."
+- **TurboQuant cache dtypes are a separate, non-MLA attention backend**
+  (`v1/attention/backends/turboquant_attn.py`); nothing in `models/deepseek_v4_1/`
+  references them, so they do not apply to this model's sparse MLA path.
+- Mainline leads are equally inapplicable today: vLLM #56464 (DeepSelect DSA
+  TopK, 2-20x large-batch TopK) compiles `sm_100a`/`sm_103a` only; vLLM #46963
+  (pre-SM100 NVFP4 KV, ~3x tokens) targets the dense **FlashInfer** backend, not
+  MLA sparse.
+
+Conclusion: reaching 500 tok/s decode at 512k on this hardware is a
+kernel-research problem (batched deep-context sparse-attention decode on SM80 +
+a 4-bit KV path the SM80 backends do not have), not a configuration one. Every
+configuration/capacity lever available has been measured and folded in.
+
+### Long-context retrieval re-validated after UTIL=0.96 fold-in (2026-09-12)
+
+`bench_needle.py`, depths 32768 / 131072 / 524288, positions 0.15 / 0.5 / 0.85:
+**recall 9/9**, exact answers (e.g. `NEEDLE-271493-X` at 512k @ 0.15). Wall times
+6.3s / 19s / ~100s. No degradation from the capacity change.
