@@ -1227,6 +1227,36 @@ does not appear in any sizing formula. So usable capacity is physically
 layers 14+20 on one rank). A 4-bit KV remains the only path to more blocks, and
 it is SM80 kernel work.
 
+### LMCache on PP8 validated (2026-09-12)
+
+LMCache was re-validated on the **PP8** layout (heterogeneous PP stages, the case
+AGENTS.md warns about for cache-object/group registration). Startup:
+`KV cache group edits applied: {'unified-attention-view': 6..9}` per rank,
+`Excluding non-prefix-cacheable engine group 5`,
+`Resolved LMCache MP geometry: group_tokens_per_block=[32,32,32,32,128,0]`.
+
+Config: PP8 util 0.96 + `LMCacheMPConnector` + `RETENTION=256` +
+`expandable_segments:False` + `VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE=32` + the
+layout-resolver fix. Accuracy (planted-key, thinking off):
+
+| arm | elapsed | answer | external_kv_transfer tok |
+|---|---|---|---|
+| cold (fresh nonce) | 2.76 s | `KEY-PP8LM1721` | 0 |
+| repeat same server (first) | 51.8 s | `KEY-PP8LM1721` | 128 |
+| repeat same server (second) | 0.55 s | `KEY-PP8LM1721` | 128 |
+| **after full vLLM restart** | 0.96 s | `KEY-PP8LM1721` | **9,728** |
+
+So PP8 restores the full 9,728-token prefix from LMCache with output identical
+to the cold run — LMCache correctness holds on PP8. The one-time 51.8 s on the
+first repeat is the initial PP8 store/flush, not a correctness issue.
+
+### Real-OpenCode c1 on PP8 (2026-09-12)
+
+`opencode-bench/` against the PP8 server (PP8+HB32+LMCache), 2 reps x 3 tasks:
+fix_bugs 22.4/9.8, add_feature 37.3/29.8, docstring 27.4/7.4 tok/s -> **median
+~24.8 tok/s end-to-end**, vs **~30 tok/s on PP6**. So PP6 remains the c1 layout;
+PP8 trades ~17% per-stream real-usage speed for 2.75x KV capacity / concurrency.
+
 ### MoE backend A/B: Humming vs Marlin (2026-09-12)
 
 `moe_backend=humming` is a valid explicit choice for this model's MXFP4 experts
