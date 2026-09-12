@@ -22,27 +22,50 @@ are marked as such.
 
 Build: `scripts/build_schaka_v13.sh` -> `localhost/vllm-backport-v41:sm80-v13`.
 
-## Deployment configuration (default)
+## Deployment configuration
+
+Two validated layouts (TP1 pipeline-parallel only):
 
 ```
 Image:     localhost/vllm-backport-v41:sm80-v13
-Layout:    TP1 x PP6, VLLM_PP_LAYER_PARTITION=7,7,7,7,7,5
 Cache:     --kv-cache-dtype fp8_ds_mla --block-size 128
 Attention: --attention-backend TRITON_MLA_SPARSE_DSV41
 Spec:      --speculative-config '{"method":"dspark","num_speculative_tokens":5}'
 Context:   --max-model-len 1048576 --enable-prefix-caching
-Serving:   --gpu-memory-utilization 0.96 --max-num-seqs 8
+Serving:   --gpu-memory-utilization 0.96
 Tools:     --enable-auto-tool-choice --tool-call-parser deepseek_v41
            --reasoning-parser deepseek_v41
+
+PP6 (best c1):  --pipeline-parallel-size 6  partition 7,7,7,7,7,5  --max-num-seqs 8
+PP8 (max KV):   --pipeline-parallel-size 8  partition 5,5,5,5,5,5,5,5  --max-num-seqs 32
 ```
 
+PP8 additionally mounts our layout-resolver fix (`patches/0007`, the PP stages
+advertise different supported KV layouts) and `patches/0008`
+(`VLLM_SPARSE_DECODE_HEAD_BLOCK_SIZE=32`).
+
 Launch: `scripts/serve_arrangement.sh 1 6 0,1,2,3,4,5 7,7,7,7,7,5 dsv41-schaka`
-with `IMG=localhost/vllm-backport-v41:sm80-v13 EP=1 SEQS=8 UTIL=0.96`.
+(PP8: `1 8 0,1,2,3,4,5,7,8 5,5,5,5,5,5,5,5`) with
+`IMG=localhost/vllm-backport-v41:sm80-v13 EP=1 UTIL=0.96`.
+
+## PP8: maximum KV / concurrency
+
+PP8 owns 5 layers per rank (PP6: 7), so the KV pool is **2.75x** PP6's:
+
+| layout | KV pool | concurrency @1M | c1 512-tok | 128k agg | 512k agg |
+|---|---|---|---|---|---|
+| PP6 | 3.40M tok | 3.25x | **65.1** | 113.8 | 55 |
+| PP8 | **9.35M tok** | **8.90x** | 53.0 | 115.6 | 60.2 (c32) |
+
+Real-OpenCode c1: ~30 tok/s (PP6) vs ~24.8 tok/s (PP8). So PP6 is the c1 layout;
+PP8 is the capacity/concurrency layout. Aggregate decode at 512k still saturates
+~55-62 tok/s regardless of concurrency (c32) or KV capacity — it is bounded by
+the depth-dependent sparse-MLA decode step cost, not capacity or layout.
 
 ## Measured results (this host)
 
 **c1 (single stream).** Real OpenCode coding tasks in a repeatable Docker
-harness (`opencode-bench/`): median **~30 tok/s end-to-end** (range 8-48),
+harness (`opencode-bench/`): median **~30 tok/s end-to-end** on PP6 (range 8-48),
 dominated by reasoning-token volume and tool-call steps. Raw 512-token
 generation (thinking off, unpredictable content): **65 tok/s**.
 
@@ -81,7 +104,10 @@ Validated end to end with **`LMCacheMPConnector`** (the HMA-capable external
 connector) + the lmcache MP server (`lmcache server`, run **with GPU access** so
 it can open the workers' CUDA IPC KV handles) + `--prefix-cache-retention-interval
 256`. Accuracy: after a full vLLM restart, 9,728 / 9,737 prompt tokens restored
-from LMCache with output identical to the cold run.
+from LMCache with output identical to the cold run. Validated on **both PP6 and
+PP8** (on PP8 all 8 stages register groups, `unified-attention-view` 6-9 per
+rank, and the restart-replay restores 9,728/9,759 tokens with the exact cold
+answer).
 
 It costs ~11% c1 decode (58.0 vs 65.1 tok/s) because vLLM's in-GPU prefix cache
 already covers single-task reuse, so LMCache is **not** the c1 default; it is
