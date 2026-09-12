@@ -1128,3 +1128,13 @@ Full 1M viability (same harness, depth 1,040,000): **recall 3/3** at positions
 0.15 / 0.5 / 0.85, exact answers, wall 311 / 284 / 240 s (whole 1M prompt is
 prefilled each time). So retrieval at the full 1M context works on the
 UTIL=0.96 config.
+
+### Live OpenCode TUI + tmux re-validated on UTIL=0.96 (2026-09-12)
+
+`campaign/opencode-proof.sh` (direct config `opencode.direct.json`, agent
+`dsv41-direct-proof`) drove the real OpenCode TUI in a tmux session against
+`http://127.0.0.1:8090`; strict validator verdict:
+`PASS: one completed read-tool call, exact final marker, tool-calls/stop
+termination, and no error events`.
+Artifacts: `/mnt/kv/logs/dsv41/opencode-proof-direct/20260912T132550Z-3593022/`
+(`opencode.jsonl`, `strict-validation.json`, `SHA256SUMS`).
