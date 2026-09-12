@@ -1106,6 +1106,76 @@ kernel-research problem (batched deep-context sparse-attention decode on SM80 +
 a 4-bit KV path the SM80 backends do not have), not a configuration one. Every
 configuration/capacity lever available has been measured and folded in.
 
+### PP8 bring-up: layout-resolver fix + 2.75x KV capacity (2026-09-12)
+
+PP8 (TP1xPP8, partition `5,5,5,5,5,5,5,5`, GPUs 0-5,7,8) initially failed:
+
+```
+AssertionError: Workers disagree on supported KV cache layouts:
+[['BLHNC','BLNHC'], ['BLHNC','BLNHC'], ['BLHNC','BLNHC'],
+ ['LBNHC','LBHNC','BLNHC','BLHNC','BHLNC','LHBNC'], ...]
+```
+
+Cause: `v1/attention/backends/utils.py:resolve_kv_cache_layout` required every
+worker to report an *identical* layout list. PP stages own different layer types,
+and a stage that includes the DeepSeek indexer advertises more layouts than one
+that does not, so the lists legitimately differ. Fix: keep the **intersection**
+of the per-rank sets in the first worker's preference order (a layout is usable
+only if every rank supports it). Python-only, mounted via `OVERLAY_MOUNT`
+(no rebuild). Committed.
+
+With the fix, PP8 (util 0.96) comes up healthy and — contrary to an earlier
+misread of Zanooda's untuned stack — has **far more KV capacity than PP6**:
+
+| layout | available KV/rank | KV pool (tokens) | max concurrency @1M |
+|---|---|---|---|
+| TP1xPP6 | 5.31 GiB | 3,404,072 | 3.25x |
+| **TP1xPP8** | **19.18 GiB** | **9,349,445** | **8.92x** |
+
+PP8's ranks own 5 layers each instead of 7, so the weight footprint per rank is
+much smaller and the KV pool is **2.75x** PP6's. At 512k that is ~18 concurrent
+requests vs ~6.6.
+
+But PP8 c1 is slower and 512k aggregate is no better (with `--max-num-seqs 8`):
+
+| arm | c1 512-tok gen | 512k c1 | 512k c4 | 512k c8 | 512k c16 |
+|---|---|---|---|---|---|
+| PP6 | 65.1 | 25.1 | 44.1 | 52.3 | - |
+| PP8 | 53.0 | 19.2 | 36.9 | 44.7 | 53.6 |
+
+So PP8 buys **capacity** (KV pool, true concurrency headroom) at the cost of
+**per-stream latency** (8 pipeline hops), and with the default `max-num-seqs 8`
+the 512k aggregate is step-cost-limited, not capacity-limited.
+
+Raising PP8 to `--max-num-seqs 32` (KV pool unchanged, 9,332,296 tokens) to
+expose true concurrency:
+
+| ctx | c8 | c16 | c24 | c32 |
+|---|---|---|---|---|
+| 512k | 45.7 | 55.2 | 56.3 | **60.2** |
+| 128k | 88.1 | 100.1 | - | **115.6** |
+
+Aggregate still saturates far below 500 tok/s even with 32 concurrent sequences
+and 9.3M tokens of KV. **Conclusion: the 512k decode ceiling (~55-60 tok/s) is
+the depth-dependent per-step cost of the sparse-MLA decode + indexer, which
+grows with batch and does not parallelize across sequences — not a layout,
+concurrency, or KV-capacity limit.**
+
+PP8 vs PP6, same util 0.96:
+
+| axis | PP6 | PP8 | winner |
+|---|---|---|---|
+| KV pool | 3.40M tok | **9.35M tok** | PP8 (2.75x) |
+| concurrency @1M | 3.25x | **8.90x** | PP8 |
+| c1 (512-tok gen) | **65.1** | 53.0 | PP6 |
+| 128k aggregate | 113.8 (c16) | 115.6 (c32) | tie |
+| 512k aggregate | 55 (c12) | 60.2 (c32) | PP8 (marginal) |
+
+**Best recommended setup:** PP6 util 0.96 for c1 latency (65 tok/s raw / ~30
+real-OpenCode); PP8 util 0.96 when maximum KV capacity / concurrency headroom is
+the goal (9.35M tokens, 8.9x at 1M); aggregate decode at length is ~114 tok/s
+@128k and ~60 tok/s @512k on either layout.
+
 ### MoE backend A/B: Humming vs Marlin (2026-09-12)
 
 `moe_backend=humming` is a valid explicit choice for this model's MXFP4 experts
