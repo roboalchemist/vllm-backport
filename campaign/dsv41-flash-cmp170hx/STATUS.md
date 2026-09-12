@@ -1046,14 +1046,29 @@ util 0.96):**
 | 9 | 54.2 | 18.4 | 43.7% |
 | 12 | 54.6 | 18.3 | 27.9% |
 
-**Aggregate decode at 512k saturates at ~55 tok/s** — from c8 on, adding
-concurrency barely moves throughput because the per-step cost grows ~linearly
+**Aggregate decode at 512k saturates at ~55 tok/s** — from c8 on, addingconcurrency barely moves throughput because the per-step cost grows ~linearly
 with batch at depth (12 sequences cost ~5.5x one sequence per step, only ~2.2x
 batching efficiency). So the **500 tok/s @512k target is ~9x away and blocked by
 two things: (1) depth-dependent decode step cost scaling with concurrency, and
 (2) KV capacity capping true multi-request concurrency at full 512k.** Neither
 is a configuration lever; both need kernel/engine work (batched sparse-attention
 decode + a 4-bit KV path for SM80). This is the honest current ceiling.
+
+**Decode at 128k depth** (same method, util 0.96), for the depth scaling:
+
+| conc | aggregate out tok/s | TPOT ms | DSpark accept |
+|---|---|---|---|
+| 1 | 36.5 | 27.4 | 28.6% |
+| 2 | 56.9 | 17.6 | 25.6% |
+| 4 | 79.7 | 12.6 | 24.9% |
+| 8 | 106.4 | 9.4 | 23.8% |
+| 16 | 113.8 | 8.8 | 22.9% |
+
+128k saturates ~114 tok/s (c8-c16) vs ~55 at 512k — i.e. the achievable
+aggregate decode roughly halves for every ~4x increase in context depth, which
+is the depth-dependent step cost, not a concurrency limit. Note acceptance is
+lower on this repeated-prose prefix (23-29%) than on predictable content (up to
+94%), so per-stream rates here are a conservative floor.
 
 Folded in: served default moved to `UTIL=0.96` (pool 2.89M -> 3.40M, +18%, 512k
 prefill verified). Sweep tooling fixed to use a unique RNG seed per arm so
@@ -1091,8 +1106,25 @@ kernel-research problem (batched deep-context sparse-attention decode on SM80 +
 a 4-bit KV path the SM80 backends do not have), not a configuration one. Every
 configuration/capacity lever available has been measured and folded in.
 
-### Long-context retrieval re-validated after UTIL=0.96 fold-in (2026-09-12)
+### Prefill current-state sweep, util 0.96 (2026-09-12)
+
+`vllm bench serve`, random unique prompt per arm, c1, out 128, server-counted:
+
+| input | TTFT | prefill tok/s (input/TTFT) | total tok/s |
+|---|---|---|---|
+| 32,768 | 5.79 s | ~5,660 | 2,973 |
+| 131,072 | 21.07 s | ~6,220 | 5,046 |
+| 524,288 | 117.3 s | ~4,470 | 4,369 |
+| 1,048,000 | 341.7 s | ~3,070 | 3,043 |
+
+So a full 1M-token prefill is ~5.7 min (TTFT 342 s), consistent across configs;
+prefill efficiency peaks around 128k (~6.2k tok/s) and falls ~2x by 1M.
 
 `bench_needle.py`, depths 32768 / 131072 / 524288, positions 0.15 / 0.5 / 0.85:
 **recall 9/9**, exact answers (e.g. `NEEDLE-271493-X` at 512k @ 0.15). Wall times
 6.3s / 19s / ~100s. No degradation from the capacity change.
+
+Full 1M viability (same harness, depth 1,040,000): **recall 3/3** at positions
+0.15 / 0.5 / 0.85, exact answers, wall 311 / 284 / 240 s (whole 1M prompt is
+prefilled each time). So retrieval at the full 1M context works on the
+UTIL=0.96 config.
