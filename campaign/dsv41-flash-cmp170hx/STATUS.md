@@ -34,6 +34,26 @@ is the first loop target.
 Harness note: the container needs `pandas` for the `custom` dataset
 (`vllm[bench]` extra); installed ad hoc, to be baked into the next image.
 
+**Regression-gate finding + corrected baseline (util 0.94).** At util 0.96 +
+`max-num-seqs 32`, a *fresh 512K prefill* OOMs
+(`torch.OutOfMemoryError` in a GEMM, GPU 63.01/63.39 GiB) — the 32K cells pass
+but the 512K cell dies, which is a regression-gate failure. Lowered PP8 to
+**util 0.94**: KV pool 7,859,683 tokens (7.50x @1M), 512K prefill reliable.
+
+| conc | Gen tok/s | total tok/s | TTFT mean/med/p99 ms | TPOT med/p99 ms | ITL p99 ms | Accept %/len | peak conc | fail |
+|---|---|---|---|---|---|---|---|---|
+| c1 | **20.6** | 2,860 | 5,452/5,391/6,032 | 27.1/36.7 | 88.6 | 23.4%/2.17 | 2 | 0 |
+| c4 | **53.4** | 7,529 | 4,202/826/16,752 | 51.7/77.9 | 646 | 21.0%/2.05 | 5 | 0 |
+| c8 | **78.9** | 11,098 | 5,709/2,229/13,365 | 74.2/113.1 | 2,312 | 21.5%/2.07 | 10 | 0 |
+
+- c8/c1 scaling ratio: **3.82x** (util 0.94 frozen baseline).
+- 512K @ c16 aggregate decode (shared prefix, pure decode): **98.9 tok/s**
+  (TPOT 10.1 ms, accept 42%). The 500 tok/s target remains far off.
+- First loop hypothesis (from the table): attack the **c4/c8 ITL p99 tail
+  (0.6-2.3 s vs ~100 ms median)** via chunked-prefill/scheduling.
+
+vllm-loop report: https://vllmloop.roboalch.com/r/43
+
 ## 1. Model facts (HF rev `df42c109f1defefcbfcedbe7d905718a12266e40`)
 
 - `DeepseekV41ForCausalLM`, `model_type=deepseek_v41`. 40 backbone layers
